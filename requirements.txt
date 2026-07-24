@@ -1,0 +1,5 @@
+pyyaml>=6.0
+psycopg[binary]>=3.2     # default target: local PostgreSQL
+duckdb>=1.0              # alternate zero-install target
+# Optional — only needed when run.target = snowflake:
+# snowflake-connector-python>=3.7

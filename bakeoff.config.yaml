@@ -1,0 +1,81 @@
+# ============================================================
+# Oracle -> Lakehouse Migration Bakeoff — control panel
+# Every knob for the bakeoff lives here.
+# ============================================================
+
+run:
+  name: demo
+  seed: 42                    # deterministic source generation
+  num_databases: 2            # scale this to hundreds/thousands
+  parallelism: 2              # concurrent (contestant x db) agent runs
+  agent_timeout_s: 900        # kill an agent run after this
+  planning_phase: true        # phase 1: agents write plan/MIGRATION_PLAN.md,
+                              #   which is fed into phase 2 (the live migration)
+  plan_timeout_s: 600         # kill a phase-1 planning run after this
+  contestants: [baseline, claude, bob]   # v2: add cursor
+  target: postgres            # postgres | duckdb | snowflake
+
+# ---------- INPUT toggles: shape of the Oracle sources ----------
+input:
+  tables_per_db: [4, 6]       # [min, max] tables per database
+  rows_per_table: [40, 120]   # [min, max] rows per table
+  domains: [hr, orders, inventory, finance]   # schema templates to draw from
+  oracle_features:            # each one raises migration difficulty
+    sequences_triggers: true  # CREATE SEQUENCE + BEFORE INSERT trigger per PK
+    plsql: true               # a stored procedure + function per DB
+    foreign_keys: true
+    check_constraints: true
+    comments: true            # COMMENT ON TABLE/COLUMN
+    oracle_date_format: true  # CSV dates as DD-MON-YYYY (else ISO)
+    edge_cases: false         # reserved-word columns, quoted identifiers, unicode data
+
+# ---------- OUTPUT toggles: what appears in the report ----------
+output:
+  metrics:
+    success: true             # fully-valid migration (all checks pass)
+    table_success_rate: true  # tables correctly created / expected
+    row_match_rate: true      # rows loaded matching expected counts
+    checksum_match_rate: true # numeric column checksums vs ground truth
+    lines_of_code: true       # non-blank lines of SQL the agent produced
+    wall_time_s: true
+    cost_usd: true            # claude reports directly; bob best-effort
+    tokens: true
+    turns: true
+  per_db_breakdown: true      # include per-database detail tables
+  save_raw_agent_output: true # keep full stdout/stderr per run
+  flow_pacing_ms: 40          # ms between streamed row batches (10 rows/batch)
+                              #   so the dashboard's data flow is watchable; 0 = off
+  shadow_execution: true      # mirror agent SQL into a live shadow_* schema AS
+                              #   the agent writes it — real-time DDL/rows in the
+                              #   dashboard instead of everything at validation
+  archive_runs: true          # snapshot each run (agent logs, produced SQL,
+                              #   reports) into runs/<name>/history/<timestamp>/
+  quality_exempt:             # per-contestant QA checks to suppress
+    bob: [oracle-sequence]    # CREATE SEQUENCE is valid PostgreSQL DDL — don't
+                              #   flag Bob for translating sequences natively.
+                              #   (claude stays eligible for this check)
+                              # slugs: oracle-varchar2 oracle-number oracle-sequence
+                              #   oracle-trigger oracle-plsql oracle-sysdate
+                              #   oracle-dual oracle-nvl oracle-todate
+
+# ---------- Contestant settings ----------
+contestants:
+  claude:
+    cmd: claude
+    model: opus                # pinned so results are reproducible run-to-run
+    max_turns: 50
+  bob:
+    cmd: bob
+    chat_mode: code
+    model: null
+    max_coins: null           # optional spend cap (bob exits 1 if exceeded)
+    usd_per_coin: 0.50        # Bob reports coins, not dollars; 1 Bobcoin = $0.50
+
+# ---------- Target settings ----------
+targets:
+  postgres:                   # local server (brew services start postgresql@17)
+    dsn: postgresql:///bakeoff  # db auto-created; one schema per (contestant, db)
+  duckdb: {}                  # zero-config, local, free
+  snowflake:                  # credentials come from .env (see .env.example)
+    warehouse: COMPUTE_WH
+    database: BAKEOFF

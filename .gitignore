@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets (only the .env.example template is committed)
+.env
+
+# Generated run artifacts (reproducible — see README)
+runs/
+results/
+*.duckdb
+
+# OS / editor
+.DS_Store
