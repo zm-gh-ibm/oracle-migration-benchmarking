@@ -1,10 +1,10 @@
 # Oracle → Postgres Migration Bakeoff
 
-A harness that benchmarks agentic coding tools — **Claude Code** vs **IBM Bob**
-(Cursor planned for v2) — on migrating Oracle databases to PostgreSQL, with a
-real-time dashboard that shows every tool call, SQL statement, and row moving as
-it happens. Designed to scale from a 2-database demo to fleets of hundreds or
-thousands of Oracle databases.
+A harness that benchmarks agentic coding tools — **Claude Code (Opus)**, **Cursor
+(Claude Sonnet)**, and **IBM Bob** — on migrating Oracle databases to PostgreSQL,
+with a real-time dashboard that shows every tool call, SQL statement, and row
+moving as it happens. Designed to scale from a 2-database demo to fleets of
+hundreds or thousands of Oracle databases.
 
 Each contestant runs through two phases per database:
 
@@ -41,6 +41,7 @@ the floor an agent must beat to justify its cost.
    references its own phase-1 plan, and produces `migrated/schema.sql`,
    `migrated/load.sql`, `migrated/notes.md`. Agents run fully headless:
    - `claude -p ... --output-format stream-json --permission-mode acceptEdits`
+     (used for both `claude` and `cursor` contestants — different models)
    - `bob "..." --chat-mode code --approval-mode auto_edit -o json`
 4. **Validate** — the harness executes the migrated SQL against the target and
    scores: tables created with correct column counts, rows loaded, numeric
@@ -85,6 +86,9 @@ python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 # start Postgres (default target) — macOS Homebrew shown; any local PG works
 brew services start postgresql@17     # the harness auto-creates the `bakeoff` db
 
+# authenticate Claude Code (required for claude + cursor contestants)
+claude /login
+
 # serve the dashboard (default) — opens the browser, runs start from its button
 ./.venv/bin/python run_bakeoff.py
 
@@ -102,6 +106,28 @@ Other flags: `--no-plan` (skip phase 1), `--generate-only` (just emit Oracle
 sources), `--revalidate` (re-score existing workspaces without re-running
 agents), `--contestants claude,bob`, `--target duckdb|snowflake`,
 `--live-port N`, `--no-browser`.
+
+## Config files
+
+Three versioned configs are provided for different use cases:
+
+| File | Purpose | Est. cost (4 contestants × 2 dbs) |
+|---|---|---|
+| `bakeoff.config.dev.yaml` | Cheap iteration — small DBs, no plan, sonnet | ~$0.50–1 |
+| `bakeoff.config.yaml` | Default — mid-size DBs, no plan, sonnet | ~$5–7 |
+| `bakeoff.config.demo.yaml` | Full demo — large DBs, plan phase on, opus | ~$10–15 |
+
+```bash
+# use a specific config
+python run_bakeoff.py --config bakeoff.config.dev.yaml
+python run_bakeoff.py --config bakeoff.config.demo.yaml
+```
+
+Cost is dominated by LLM tokens (not the Python harness). The main levers:
+- `planning_phase: false` — skip phase 1, saves ~40% cost and time
+- `rows_per_table` — CSV data is the largest context chunk; halving rows cuts ~50% tokens
+- `contestants.claude.model: sonnet` vs `opus` — ~6× cost difference
+- `run.parallelism` — doesn't affect token count, only wall-clock time
 
 ## Targets
 
@@ -165,18 +191,20 @@ Everything is controlled from one file:
 ## Layout
 
 ```
-bakeoff.config.yaml     # the control panel
-run_bakeoff.py          # orchestrator CLI (serve / --once / --revalidate)
+bakeoff.config.yaml        # default config (mid-cost)
+bakeoff.config.dev.yaml    # cheap dev/test config
+bakeoff.config.demo.yaml   # full-difficulty demo config
+run_bakeoff.py             # orchestrator CLI (serve / --once / --revalidate)
 bakeoff/
   oracle_gen.py         # synthetic Oracle fleet generator (+ ground truth)
-  contestants.py        # claude / bob / baseline adapters, phase-1 & phase-2 tasks
+  contestants.py        # claude / cursor / bob / baseline adapters
   targets.py            # PostgreSQL + DuckDB + Snowflake executors
   shadow.py             # live shadow-execution of agent SQL during the run
   validate.py           # migrated-SQL scoring vs manifest
   quality.py            # testing/QA layer (dev + output findings)
   live.py               # run state + dashboard HTTP server (/live.json, /metrics)
   report.py             # results.json + REPORT.md
-  visualize.py          # self-contained real-time dashboard
+  visualize.py          # self-contained real-time dashboard (IBM favicon)
 runs/<name>/            # sources, workspaces, agent logs, history/ (gitignored)
 results/<name>/         # REPORT.md + results.json + dashboard.html (gitignored)
 ```
@@ -184,9 +212,22 @@ results/<name>/         # REPORT.md + results.json + dashboard.html (gitignored)
 Generated `runs/` and `results/` are reproducible and excluded from version
 control; run the harness to produce them.
 
-## v2 roadmap
+## Contestants
 
-- Cursor adapter (`cursor-agent -p` headless CLI) as third contestant.
+| Name | CLI | Model | Notes |
+|---|---|---|---|
+| `baseline` | — | none | Free rule-based converter; the floor agents must beat |
+| `claude` | `claude` (Claude Code) | claude-opus-4 | Anthropic's most capable model |
+| `cursor` | `claude` (Claude Code) | claude-sonnet-4 | Closest approximation to Cursor's default setup |
+| `bob` | `bob` (IBM Bob) | IBM default | IBM's coding agent; prices in Bobcoins ($0.50/coin) |
+
+`cursor` uses the same Claude Code CLI as `claude` but with Sonnet — Cursor's
+default model as of 2025. A true Cursor adapter is not possible until Cursor
+releases a headless CLI.
+
+## Roadmap
+
+- OpenAI Codex CLI contestant (`codex`) for a genuine 3-way lab comparison.
 - Data-quality dimensions beyond checksums (null-rate, distinct counts, FK integrity).
 - Plan-adherence grading (does phase-2 SQL honor the phase-1 plan?).
 - Cost-normalized leaderboard (success per dollar, both phases).

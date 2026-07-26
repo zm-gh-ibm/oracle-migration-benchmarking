@@ -183,59 +183,6 @@ class PostgresTarget:
         self.conn.close()
 
 
-class DuckDBTarget:
-    name = "duckdb"
-    dialect = "DuckDB SQL"
-    numeric_cast = "DOUBLE"
-    executor_desc = ("the DuckDB Python client, one statement at a time, with the "
-                     "working directory set to the migration folder (so relative "
-                     "paths like 'source/data/x.csv' resolve)")
-
-    def __init__(self, workspace, _cfg=None):
-        import duckdb
-        self.workspace = Path(workspace)
-        db_file = self.workspace / "_validation.duckdb"
-        if db_file.exists():
-            db_file.unlink()
-        self.conn = duckdb.connect(str(db_file))
-        # relative CSV paths in load.sql resolve against the workspace
-        self.conn.execute(f"SET file_search_path = '{self.workspace.as_posix()}'")
-
-    def run_script(self, sql_text, on_stmt=None):
-        # contestants reference CSVs relative to the workspace ('source/data/x.csv');
-        # rewrite to absolute so validation works from any cwd (../ tolerated —
-        # agents sometimes write paths relative to migrated/)
-        abs_prefix = self.workspace.as_posix() + "/source/data/"
-        sql_text = re.sub(r"(?<![\w/])(?:\.\./|\./)*source/data/", abs_prefix, sql_text)
-        errors = []
-        for stmt in split_statements(sql_text):
-            try:
-                self.conn.execute(stmt)
-                if on_stmt:
-                    on_stmt(stmt)
-            except Exception as e:
-                errors.append({"statement": stmt[:200], "error": str(e).split("\n")[0][:300]})
-        return errors
-
-    def scalar(self, sql):
-        row = self.conn.execute(sql).fetchone()
-        return row[0] if row else None
-
-    def table_names(self):
-        rows = self.conn.execute(
-            "SELECT table_name FROM information_schema.tables "
-            "WHERE table_schema = 'main'").fetchall()
-        return {r[0].lower() for r in rows}
-
-    def column_count(self, table):
-        return self.scalar(
-            f"SELECT COUNT(*) FROM information_schema.columns "
-            f"WHERE table_schema='main' AND lower(table_name)='{table.lower()}'")
-
-    def close(self):
-        self.conn.close()
-
-
 class SnowflakeTarget:
     name = "snowflake"
     dialect = "Snowflake SQL"
@@ -295,5 +242,4 @@ class SnowflakeTarget:
         self.conn.close()
 
 
-TARGETS = {"postgres": PostgresTarget, "duckdb": DuckDBTarget,
-           "snowflake": SnowflakeTarget}
+TARGETS = {"postgres": PostgresTarget, "snowflake": SnowflakeTarget}

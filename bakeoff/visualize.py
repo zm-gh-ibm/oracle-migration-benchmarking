@@ -20,6 +20,7 @@ _SLOTS = ["claude", "bob", "cursor"]
 _HEAD = """<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oracle → Lakehouse Bakeoff</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
 <style>
 .viz-root {
   color-scheme: light;
@@ -284,7 +285,11 @@ tr:last-child td { border-bottom: none; }
 _BODY = """<div class="viz-root"><div class="wrap">
   <div class="titlerow">
     <h1>Oracle → Lakehouse Migration Bakeoff</h1>
-    <button id="runbtn" style="display:none">▶ Run bakeoff</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="historySel" style="display:none;font:inherit;font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1);cursor:pointer"></select>
+      <button id="exportBtn" style="font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--surface-1);color:var(--ink-1);display:none">⬇ Export</button>
+      <button id="runbtn" style="display:none">▶ Run bakeoff</button>
+    </div>
   </div>
   <div class="meta" id="meta"></div>
   <div class="kpis" id="kpis"></div>
@@ -432,6 +437,23 @@ function renderKpis(DATA, order) {
   tile("Fully successful", ok + "/" + (done || totalJobs), done ? Math.round(100 * ok / done) + "% of finished jobs passed every check" : "waiting for first result");
   tile("Total agent time", agentTime >= 120 ? (agentTime / 60).toFixed(1) + " min" : Math.round(agentTime) + "s", "wall clock across both phases");
   tile("Total spend", fmtUsd(spend) || "—", costGap.length ? "both phases; reported costs only — " + costGap.join(", ") + " reports none" : "planning + migration");
+
+  // cost-normalized ROI: successful migrations per dollar spent, per contestant
+  const roiRows = order.filter(c => c !== "baseline").map(c => {
+    const s = DATA.summary[c] || {};
+    const totalCost = (s.cost_usd || 0) + (s.plan_cost_usd || 0);
+    const wins = DATA.results.filter(r => r.contestant === c && r.validation.success).length;
+    return { label: c, wins, cost: totalCost };
+  }).filter(r => r.cost > 0);
+  if (roiRows.length) {
+    const best = roiRows.reduce((a, r) => (r.wins / r.cost > a.wins / a.cost ? r : a), roiRows[0]);
+    const roiStr = roiRows.map(r =>
+      r.label + ": " + r.wins + " win" + (r.wins !== 1 ? "s" : "") + " / $" + r.cost.toFixed(2)
+    ).join(" · ");
+    tile("Best ROI", best.label,
+      roiStr + " — successful migrations per dollar (baseline excluded, free)");
+  }
+
   const withQ = DATA.results.filter(r => r.quality);
   if (withQ.length) {
     const qe = withQ.reduce((a, r) => a + r.quality.errors, 0);
@@ -546,7 +568,7 @@ function renderFlow(DATA, order) {
       }
     }
     grid.append(pipe);
-    const ticon = { postgres: "🐘", duckdb: "🦆", snowflake: "❄" }[targetName] || "🗄";
+    const ticon = { postgres: "🐘", snowflake: "❄" }[targetName] || "🗄";
     grid.append(el("div", "dbnode", ticon + " " + targetName));
     lane.append(grid);
 
@@ -959,6 +981,49 @@ if (LIVE) {
   tick();
 } else if (EMBED) {
   render(EMBED);
+}
+
+// ---- export button ----
+const exportBtn = byId("exportBtn");
+if (exportBtn) {
+  exportBtn.style.display = "";
+  exportBtn.addEventListener("click", () => {
+    const data = lastData;
+    if (!data) return;
+    const ts = (data.generated_at || new Date().toISOString()).replace(/[: ]/g, "-").slice(0, 19);
+    // export results.json
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bakeoff-results-" + ts + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+// ---- history dropdown (live mode only) ----
+if (LIVE) {
+  const sel = byId("historySel");
+  async function loadHistory() {
+    try {
+      const r = await fetch("/history.json", { cache: "no-store" });
+      const entries = await r.json();
+      if (!entries.length) return;
+      sel.style.display = "";
+      sel.innerHTML = "<option value=''>⏱ Past runs…</option>" +
+        entries.map(e => `<option value="${e.ts}">${e.label}</option>`).join("");
+      sel.addEventListener("change", async () => {
+        if (!sel.value) return;
+        try {
+          const r2 = await fetch("/history/" + sel.value, { cache: "no-store" });
+          const data = await r2.json();
+          render({ ...data, live: false });
+          exportBtn.style.display = "";
+        } catch (e) {}
+      });
+    } catch (e) {}
+  }
+  loadHistory();
 }
 </script>"""
 

@@ -20,8 +20,8 @@ run:
 #   standard demo:   tables [4,6], rows [40,120], no plan → ~$5–7
 #   full difficulty: tables [4,6], rows [40,120], plan on → ~$10–15
 input:
-  tables_per_db: [2, 3]       # [min, max] tables per database  ← [4,6] for full run
-  rows_per_table: [10, 20]    # [min, max] rows per table        ← [40,120] for full run
+  tables_per_db: [4, 6]       # [min, max] tables per database
+  rows_per_table: [40, 120]   # [min, max] rows per table
   domains: [hr, orders, inventory, finance]   # schema templates to draw from
   oracle_features:            # each one raises migration difficulty
     sequences_triggers: true  # CREATE SEQUENCE + BEFORE INSERT trigger per PK
@@ -67,11 +67,11 @@ contestants:
   claude:
     cmd: claude
     model: opus                # pinned so results are reproducible run-to-run
-    max_turns: 20              # 50 for full run; 20 keeps dev costs low
+    max_turns: 50
   cursor:
     cmd: claude                # same Claude Code CLI — Cursor's default model is Sonnet
     model: sonnet              # claude-sonnet-4: Cursor's default as of 2025
-    max_turns: 20
+    max_turns: 50
   bob:
     cmd: bob
     chat_mode: code
