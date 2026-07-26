@@ -9,7 +9,7 @@ run:
   num_databases: 2            # scale this to hundreds/thousands
   parallelism: 5              # concurrent (contestant x db) agent runs
   agent_timeout_s: 900        # kill an agent run after this
-  planning_phase: true        # phase 1: agents write plan/MIGRATION_PLAN.md
+  planning_phase: false       # skip phase 1 to save ~40% cost; set true for full run
   plan_timeout_s: 600         # kill a phase-1 planning run after this
   contestants: [baseline, claude, cursor, bob]
   target: postgres            # postgres (default, live shadow exec) | snowflake
@@ -66,7 +66,7 @@ output:
 contestants:
   claude:
     cmd: claude
-    model: opus                # pinned so results are reproducible run-to-run
+    model: sonnet              # sonnet for dev; swap to opus for full demo run
     max_turns: 20              # 50 for full run; 20 keeps dev costs low
   cursor:
     cmd: claude                # same Claude Code CLI — Cursor's default model is Sonnet
