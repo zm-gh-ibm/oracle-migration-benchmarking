@@ -44,8 +44,7 @@ DEFAULTS = {
         "bob": {"cmd": "bob", "chat_mode": "code", "model": None, "max_coins": None,
                 "usd_per_coin": 0.50},
     },
-    "targets": {"postgres": {"dsn": "postgresql:///bakeoff"},
-                "duckdb": {}, "snowflake": {}},
+    "targets": {"postgres": {"dsn": "postgresql:///bakeoff"}, "snowflake": {}},
 }
 
 
@@ -67,6 +66,6 @@ def load_config(path):
     for c in cfg["run"]["contestants"]:
         if c not in known:
             raise ValueError(f"unknown contestant '{c}' (known: {sorted(known)})")
-    if cfg["run"]["target"] not in ("postgres", "duckdb", "snowflake"):
-        raise ValueError("run.target must be postgres, duckdb, or snowflake")
+    if cfg["run"]["target"] not in ("postgres", "snowflake"):
+        raise ValueError("run.target must be postgres or snowflake")
     return cfg

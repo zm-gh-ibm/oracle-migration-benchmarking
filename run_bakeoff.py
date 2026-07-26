@@ -234,8 +234,40 @@ def archive_run(cfg, raw_dir, ws_root, results_dir):
     return hist
 
 
+def _print_run_summary(cfg):
+    """Print a human-readable pre-run overview for demo audiences."""
+    r = cfg["run"]
+    inp = cfg["input"]
+    feats = [k for k, on in inp["oracle_features"].items() if on]
+    lo, hi = inp["tables_per_db"]
+    rlo, rhi = inp["rows_per_table"]
+    contestants = r["contestants"]
+    n_jobs = len(contestants) * r["num_databases"]
+    print()
+    print("=" * 60)
+    print("  Oracle → Lakehouse Migration Bakeoff")
+    print("=" * 60)
+    print(f"  Run name   : {r['name']}")
+    print(f"  Target     : {r['target']}")
+    print(f"  Seed       : {r['seed']}  (deterministic — same inputs every run)")
+    print()
+    print(f"  Databases  : {r['num_databases']}  ({lo}–{hi} tables each, "
+          f"{rlo}–{rhi} rows/table)")
+    print(f"  Domains    : {', '.join(inp['domains'])}")
+    print(f"  Oracle     : {', '.join(feats)}")
+    print()
+    print(f"  Contestants: {', '.join(contestants)}")
+    print(f"  Jobs       : {n_jobs}  "
+          f"({len(contestants)} contestants × {r['num_databases']} databases)")
+    print(f"  Parallelism: {r['parallelism']}  (concurrent agent runs)")
+    print(f"  Phases     : {'1 plan + 2 migrate' if r.get('planning_phase', True) else '2 migrate only'}")
+    print("=" * 60)
+    print()
+
+
 def execute_run(cfg, live=None):
     """One full bakeoff: generate the fleet, run every job, write reports."""
+    _print_run_summary(cfg)
     run_name = cfg["run"]["name"]
     target_cls = TARGETS[cfg["run"]["target"]]
     sources_dir = ROOT / "runs" / run_name / "sources"
@@ -385,7 +417,7 @@ def main():
     ap.add_argument("--contestants", help="comma list override, e.g. baseline,claude")
     ap.add_argument("--num-dbs", type=int, help="override run.num_databases")
     ap.add_argument("--parallelism", type=int, help="override run.parallelism")
-    ap.add_argument("--target", choices=["postgres", "duckdb", "snowflake"])
+    ap.add_argument("--target", choices=["postgres", "snowflake"])
     ap.add_argument("--no-plan", action="store_true",
                     help="skip phase 1 (architectural migration plan)")
     ap.add_argument("--once", action="store_true",

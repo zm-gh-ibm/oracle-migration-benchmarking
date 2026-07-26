@@ -432,6 +432,23 @@ function renderKpis(DATA, order) {
   tile("Fully successful", ok + "/" + (done || totalJobs), done ? Math.round(100 * ok / done) + "% of finished jobs passed every check" : "waiting for first result");
   tile("Total agent time", agentTime >= 120 ? (agentTime / 60).toFixed(1) + " min" : Math.round(agentTime) + "s", "wall clock across both phases");
   tile("Total spend", fmtUsd(spend) || "—", costGap.length ? "both phases; reported costs only — " + costGap.join(", ") + " reports none" : "planning + migration");
+
+  // cost-normalized ROI: successful migrations per dollar spent, per contestant
+  const roiRows = order.filter(c => c !== "baseline").map(c => {
+    const s = DATA.summary[c] || {};
+    const totalCost = (s.cost_usd || 0) + (s.plan_cost_usd || 0);
+    const wins = DATA.results.filter(r => r.contestant === c && r.validation.success).length;
+    return { label: c, wins, cost: totalCost };
+  }).filter(r => r.cost > 0);
+  if (roiRows.length) {
+    const best = roiRows.reduce((a, r) => (r.wins / r.cost > a.wins / a.cost ? r : a), roiRows[0]);
+    const roiStr = roiRows.map(r =>
+      r.label + ": " + r.wins + " win" + (r.wins !== 1 ? "s" : "") + " / $" + r.cost.toFixed(2)
+    ).join(" · ");
+    tile("Best ROI", best.label,
+      roiStr + " — successful migrations per dollar (baseline excluded, free)");
+  }
+
   const withQ = DATA.results.filter(r => r.quality);
   if (withQ.length) {
     const qe = withQ.reduce((a, r) => a + r.quality.errors, 0);
@@ -546,7 +563,7 @@ function renderFlow(DATA, order) {
       }
     }
     grid.append(pipe);
-    const ticon = { postgres: "🐘", duckdb: "🦆", snowflake: "❄" }[targetName] || "🗄";
+    const ticon = { postgres: "🐘", snowflake: "❄" }[targetName] || "🗄";
     grid.append(el("div", "dbnode", ticon + " " + targetName));
     lane.append(grid);
 

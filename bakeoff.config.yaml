@@ -13,7 +13,7 @@ run:
                               #   which is fed into phase 2 (the live migration)
   plan_timeout_s: 600         # kill a phase-1 planning run after this
   contestants: [baseline, claude, bob]   # v2: add cursor
-  target: postgres            # postgres | duckdb | snowflake
+  target: postgres            # postgres (default, live shadow exec) | snowflake
 
 # ---------- INPUT toggles: shape of the Oracle sources ----------
 input:
@@ -27,7 +27,8 @@ input:
     check_constraints: true
     comments: true            # COMMENT ON TABLE/COLUMN
     oracle_date_format: true  # CSV dates as DD-MON-YYYY (else ISO)
-    edge_cases: false         # reserved-word columns, quoted identifiers, unicode data
+    edge_cases: true          # reserved-word columns, quoted identifiers, unicode data
+                              #   — this is where agents diverge most from each other
 
 # ---------- OUTPUT toggles: what appears in the report ----------
 output:
@@ -75,7 +76,6 @@ contestants:
 targets:
   postgres:                   # local server (brew services start postgresql@17)
     dsn: postgresql:///bakeoff  # db auto-created; one schema per (contestant, db)
-  duckdb: {}                  # zero-config, local, free
   snowflake:                  # credentials come from .env (see .env.example)
     warehouse: COMPUTE_WH
     database: BAKEOFF

@@ -103,10 +103,7 @@ in `migrated/notes.md`.
 def write_task_file(workspace, target, with_plan=False):
     date_note = ("; dates use Oracle's DD-MON-YYYY format"
                  if _workspace_uses_oracle_dates(workspace) else "")
-    if target.name == "duckdb":
-        load_note = ("Reference the CSVs by relative path, e.g. "
-                     "`'source/data/employees.csv'`.")
-    elif target.name == "postgres":
+    if target.name == "postgres":
         load_note = ("Load with COPY, referencing CSVs by relative path, e.g. "
                      "`COPY employees FROM 'source/data/employees.csv' "
                      "WITH (FORMAT csv, HEADER true, NULL '');`.")
@@ -345,9 +342,9 @@ def _convert_type(otype, target_name):
     if mm:
         return f"DECIMAL({mm.group(1)},0)"
     if t == "NUMBER":
-        return "DOUBLE" if target_name == "duckdb" else "FLOAT"
+        return "FLOAT"
     if t == "CLOB":
-        return "TEXT" if target_name == "duckdb" else "VARCHAR"
+        return "VARCHAR"
     mm = re.match(r"CHAR\((\d+)\)", t)
     if mm:
         return f"VARCHAR({mm.group(1)})"
@@ -373,7 +370,7 @@ def _parse_oracle_tables(schema_text):
     return tables
 
 
-def run_baseline(workspace, _cfg, _timeout, raw_path=None, target_name="duckdb",
+def run_baseline(workspace, _cfg, _timeout, raw_path=None, target_name="postgres",
                  on_event=None):
     def emit(kind, text):
         if on_event:
@@ -398,15 +395,7 @@ def run_baseline(workspace, _cfg, _timeout, raw_path=None, target_name="duckdb",
         col_defs += [f"  {c}" for c in cons]
         ddl_parts.append(f"CREATE TABLE {tname} (\n" + ",\n".join(col_defs) + "\n);")
 
-        if target_name == "duckdb":
-            colspec = ", ".join(
-                f"'{cname}': '{_convert_type(re.sub(r'NOT NULL', '', rest, flags=re.IGNORECASE), target_name)}'"
-                for cname, rest in cols)
-            datefmt = ", dateformat='%d-%b-%Y'" if uses_oracle_dates else ""
-            load_parts.append(
-                f"INSERT INTO {tname} SELECT * FROM read_csv('source/data/{tname}.csv', "
-                f"header=true, columns={{{colspec}}}{datefmt});")
-        elif target_name == "postgres":
+        if target_name == "postgres":
             # Postgres parses DD-MON-YYYY dates natively; NULL '' maps empties
             load_parts.append(
                 f"COPY {tname} FROM 'source/data/{tname}.csv' "
@@ -439,7 +428,7 @@ def run_baseline(workspace, _cfg, _timeout, raw_path=None, target_name="duckdb",
     return m
 
 
-def run_baseline_plan(workspace, target_name="duckdb", on_event=None):
+def run_baseline_plan(workspace, target_name="postgres", on_event=None):
     """Deterministic phase-1 plan: what a rule-based converter can honestly
     promise. Free and instant — the planning floor an agent must beat."""
     m = _base_metrics("baseline")
@@ -482,7 +471,7 @@ def run_baseline_plan(workspace, target_name="duckdb", on_event=None):
     return m
 
 
-def run_contestant(name, workspace, cfg, timeout, raw_path=None, target_name="duckdb",
+def run_contestant(name, workspace, cfg, timeout, raw_path=None, target_name="postgres",
                    on_event=None, phase="migrate"):
     prompt = PLAN_PROMPT if phase == "plan" else AGENT_PROMPT
     if name == "baseline":
