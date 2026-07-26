@@ -7,12 +7,12 @@ run:
   name: demo
   seed: 42                    # deterministic source generation
   num_databases: 2            # scale this to hundreds/thousands
-  parallelism: 2              # concurrent (contestant x db) agent runs
+  parallelism: 5              # concurrent (contestant x db) agent runs
   agent_timeout_s: 900        # kill an agent run after this
   planning_phase: true        # phase 1: agents write plan/MIGRATION_PLAN.md,
                               #   which is fed into phase 2 (the live migration)
   plan_timeout_s: 600         # kill a phase-1 planning run after this
-  contestants: [baseline, claude, bob]   # v2: add cursor
+  contestants: [baseline, claude, cursor, bob]
   target: postgres            # postgres (default, live shadow exec) | snowflake
 
 # ---------- INPUT toggles: shape of the Oracle sources ----------
@@ -64,6 +64,10 @@ contestants:
   claude:
     cmd: claude
     model: opus                # pinned so results are reproducible run-to-run
+    max_turns: 50
+  cursor:
+    cmd: claude                # same Claude Code CLI — Cursor's default model is Sonnet
+    model: sonnet              # claude-sonnet-4: Cursor's default as of 2025
     max_turns: 50
   bob:
     cmd: bob

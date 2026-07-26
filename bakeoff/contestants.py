@@ -481,6 +481,11 @@ def run_contestant(name, workspace, cfg, timeout, raw_path=None, target_name="po
     if name == "claude":
         return run_claude(workspace, cfg.get("contestants", {}).get("claude", {}),
                           timeout, raw_path, on_event, prompt)
+    if name == "cursor":
+        # Cursor's default model is Claude Sonnet — closest approximation using
+        # the same Claude Code CLI but with sonnet instead of opus.
+        return run_claude(workspace, cfg.get("contestants", {}).get("cursor", {}),
+                          timeout, raw_path, on_event, prompt)
     if name == "bob":
         return run_bob(workspace, cfg.get("contestants", {}).get("bob", {}),
                        timeout, raw_path, on_event, prompt)
