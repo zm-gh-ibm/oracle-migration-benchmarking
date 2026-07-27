@@ -41,6 +41,7 @@ DEFAULTS = {
     },
     "contestants": {
         "claude": {"cmd": "claude", "model": "opus", "max_turns": 50},
+        "cursor": {"cmd": "cursor-agent", "model": None},  # None = Cursor's default model
         "bob": {"cmd": "bob", "chat_mode": "code", "model": None, "max_coins": None,
                 "usd_per_coin": 0.50},
     },

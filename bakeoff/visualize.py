@@ -284,7 +284,11 @@ tr:last-child td { border-bottom: none; }
 _BODY = """<div class="viz-root"><div class="wrap">
   <div class="titlerow">
     <h1>Oracle → Lakehouse Migration Bakeoff</h1>
-    <button id="runbtn" style="display:none">▶ Run bakeoff</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="historySel" style="display:none;font:inherit;font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1);cursor:pointer"></select>
+      <button id="exportBtn" style="font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--surface-1);color:var(--ink-1);display:none">⬇ Export</button>
+      <button id="runbtn" style="display:none">▶ Run bakeoff</button>
+    </div>
   </div>
   <div class="meta" id="meta"></div>
   <div class="kpis" id="kpis"></div>
@@ -432,6 +436,23 @@ function renderKpis(DATA, order) {
   tile("Fully successful", ok + "/" + (done || totalJobs), done ? Math.round(100 * ok / done) + "% of finished jobs passed every check" : "waiting for first result");
   tile("Total agent time", agentTime >= 120 ? (agentTime / 60).toFixed(1) + " min" : Math.round(agentTime) + "s", "wall clock across both phases");
   tile("Total spend", fmtUsd(spend) || "—", costGap.length ? "both phases; reported costs only — " + costGap.join(", ") + " reports none" : "planning + migration");
+
+  // cost-normalized ROI: successful migrations per dollar spent, per contestant
+  const roiRows = order.filter(c => c !== "baseline").map(c => {
+    const s = DATA.summary[c] || {};
+    const totalCost = (s.cost_usd || 0) + (s.plan_cost_usd || 0);
+    const wins = DATA.results.filter(r => r.contestant === c && r.validation.success).length;
+    return { label: c, wins, cost: totalCost };
+  }).filter(r => r.cost > 0);
+  if (roiRows.length) {
+    const best = roiRows.reduce((a, r) => (r.wins / r.cost > a.wins / a.cost ? r : a), roiRows[0]);
+    const roiStr = roiRows.map(r =>
+      r.label + ": " + r.wins + " win" + (r.wins !== 1 ? "s" : "") + " / $" + r.cost.toFixed(2)
+    ).join(" · ");
+    tile("Best ROI", best.label,
+      roiStr + " — successful migrations per dollar (baseline excluded, free)");
+  }
+
   const withQ = DATA.results.filter(r => r.quality);
   if (withQ.length) {
     const qe = withQ.reduce((a, r) => a + r.quality.errors, 0);
@@ -959,6 +980,49 @@ if (LIVE) {
   tick();
 } else if (EMBED) {
   render(EMBED);
+}
+
+// ---- export button ----
+const exportBtn = byId("exportBtn");
+if (exportBtn) {
+  exportBtn.style.display = "";
+  exportBtn.addEventListener("click", () => {
+    const data = lastData;
+    if (!data) return;
+    const ts = (data.generated_at || new Date().toISOString()).replace(/[: ]/g, "-").slice(0, 19);
+    // export results.json
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bakeoff-results-" + ts + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
+// ---- history dropdown (live mode only) ----
+if (LIVE) {
+  const sel = byId("historySel");
+  async function loadHistory() {
+    try {
+      const r = await fetch("/history.json", { cache: "no-store" });
+      const entries = await r.json();
+      if (!entries.length) return;
+      sel.style.display = "";
+      sel.innerHTML = "<option value=''>⏱ Past runs…</option>" +
+        entries.map(e => `<option value="${e.ts}">${e.label}</option>`).join("");
+      sel.addEventListener("change", async () => {
+        if (!sel.value) return;
+        try {
+          const r2 = await fetch("/history/" + sel.value, { cache: "no-store" });
+          const data = await r2.json();
+          render({ ...data, live: false });
+          exportBtn.style.display = "";
+        } catch (e) {}
+      });
+    } catch (e) {}
+  }
+  loadHistory();
 }
 </script>"""
 

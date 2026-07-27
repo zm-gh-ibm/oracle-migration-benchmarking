@@ -12,6 +12,7 @@ import json
 import threading
 import time
 import webbrowser
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MAX_EVENTS = 4000          # ring-buffer cap so huge runs don't bloat the page
@@ -193,6 +194,32 @@ class DashboardServer:
               f'bakeoff_elapsed_seconds {snap.get("elapsed_s", 0)}']
         return "\n".join(L) + "\n"
 
+    def _history_entries(self):
+        """Return past runs from runs/<name>/history/, newest first."""
+        run_name = self.cfg["run"]["name"]
+        hist_root = Path(__file__).resolve().parent.parent / "runs" / run_name / "history"
+        entries = []
+        if not hist_root.exists():
+            return entries
+        for ts_dir in sorted(hist_root.iterdir(), reverse=True):
+            rj = ts_dir / "results.json"
+            if not rj.exists():
+                continue
+            try:
+                data = json.loads(rj.read_text())
+                summary = data.get("summary", {})
+                contestants = [c for c in summary if c != "baseline"]
+                label = ts_dir.name  # e.g. 20260725-163059
+                stats = " · ".join(
+                    f"{c} {summary[c].get('fully_successful',0)}/{summary[c].get('databases',0)}"
+                    for c in contestants if c in summary
+                )
+                entries.append({"ts": label, "label": f"{label}  {stats}",
+                                 "path": str(rj)})
+            except Exception:
+                continue
+        return entries
+
     def serve(self, port, open_browser=True):
         srv = self
 
@@ -213,6 +240,19 @@ class DashboardServer:
                 elif route == "/metrics":
                     self._send(200, srv.metrics().encode(),
                                "text/plain; version=0.0.4; charset=utf-8")
+                elif route == "/history.json":
+                    self._send(200, json.dumps(srv._history_entries()).encode(),
+                               "application/json")
+                elif route.startswith("/history/"):
+                    # serve a specific past results.json by timestamp
+                    ts = route.split("/history/")[1].split("?")[0]
+                    run_name = srv.cfg["run"]["name"]
+                    rj = (Path(__file__).resolve().parent.parent /
+                          "runs" / run_name / "history" / ts / "results.json")
+                    if rj.exists():
+                        self._send(200, rj.read_bytes(), "application/json")
+                    else:
+                        self._send(404, b'{"error":"not found"}', "application/json")
                 else:
                     self._send(200, srv.page_html.encode(), "text/html; charset=utf-8")
 

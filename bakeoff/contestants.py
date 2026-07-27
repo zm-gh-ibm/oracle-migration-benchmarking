@@ -7,6 +7,8 @@ and migrated/notes.md. Adapters return a uniform metrics dict.
   baseline -- deterministic rule-based converter (free; pipeline smoke test and
               the benchmark floor an agent must beat)
   claude   -- Claude Code headless: claude -p ... --output-format json
+  cursor   -- Cursor CLI headless: cursor-agent -p ... --output-format stream-json
+              (real Cursor credits; default model unless pinned in config)
   bob      -- IBM Bob Shell one-shot: bob "..." --chat-mode code -o json
 """
 import json
@@ -280,6 +282,97 @@ def run_claude(workspace, ccfg, timeout, raw_path=None, on_event=None,
     return m
 
 
+def _summarize_cursor_tool(tool_call, workspace):
+    """One human-readable line for a cursor-agent tool_call event.
+
+    tool_call is a single-key dict like {"editToolCall": {"args": {...}}};
+    the key names the tool, args carry a path/command. Paths are absolute —
+    relativize against the workspace for readable activity lines."""
+    if not isinstance(tool_call, dict) or not tool_call:
+        return "tool"
+    key = next(iter(tool_call))
+    name = key[:-len("ToolCall")] if key.endswith("ToolCall") else key
+    args = (tool_call[key] or {}).get("args", {})
+    detail = None
+    if isinstance(args, dict):
+        for k in ("command", "path", "file_path", "pattern", "query", "url"):
+            if args.get(k):
+                detail = str(args[k])
+                break
+    if detail:
+        ws = str(Path(workspace).resolve())
+        if detail.startswith(ws):
+            detail = detail[len(ws):].lstrip("/") or "."
+        return f"{name}: {detail}"
+    return name
+
+
+def run_cursor(workspace, ccfg, timeout, raw_path=None, on_event=None,
+               prompt=AGENT_PROMPT):
+    """Cursor CLI headless with stream-json: thinking deltas, tool_call
+    started/completed and assistant messages arrive as JSONL while the agent
+    runs. Spends real Cursor credits; with no model pinned it uses Cursor's
+    default (the honest 'Cursor as shipped' configuration)."""
+    m = _base_metrics("cursor")
+    cmd = [ccfg.get("cmd", "cursor-agent"), "-p", prompt,
+           "--output-format", "stream-json", "--force", "--trust"]
+    if ccfg.get("model"):
+        cmd += ["--model", ccfg["model"]]
+
+    final = {}
+    thinking = []          # accumulate deltas; emit one line per completed block
+    tool_calls = [0]
+
+    def on_line(line):
+        line = line.strip()
+        if not line.startswith("{"):
+            return
+        try:
+            evt = json.loads(line)
+        except json.JSONDecodeError:
+            return
+        etype = evt.get("type")
+        if etype == "system" and evt.get("subtype") == "init":
+            m["model"] = evt.get("model")
+            if on_event and evt.get("model"):
+                on_event("text", f"model: {evt['model']}")
+        elif etype == "thinking":
+            if evt.get("subtype") == "delta":
+                thinking.append(evt.get("text", ""))
+            elif evt.get("subtype") == "completed" and thinking:
+                text = "".join(thinking).strip()
+                thinking.clear()
+                if text and on_event:
+                    on_event("text", text)
+        elif etype == "tool_call" and evt.get("subtype") == "started":
+            tool_calls[0] += 1
+            if on_event:
+                on_event("tool", _summarize_cursor_tool(
+                    evt.get("tool_call"), workspace))
+        elif etype == "assistant":
+            for block in (evt.get("message") or {}).get("content", []):
+                if block.get("type") == "text" and block.get("text", "").strip():
+                    if on_event:
+                        on_event("text", block["text"].strip())
+        elif etype == "result":
+            final.update(evt)
+
+    exit_code, out, err, wall = _run_subprocess(cmd, workspace, timeout, raw_path, on_line)
+    m["exit_code"], m["wall_time_s"] = exit_code, wall
+    if final:
+        usage = final.get("usage", {})
+        m["tokens_in"] = usage.get("inputTokens")
+        m["tokens_out"] = usage.get("outputTokens")
+        m["turns"] = tool_calls[0] or None   # CLI reports no turn count; tool calls ≈ turns
+        # cursor-agent reports no dollar cost — Cursor bills in plan credits.
+        m["cost_source"] = "not reported (Cursor credits)"
+        if final.get("is_error"):
+            m["error"] = str(final.get("result"))[:300]
+    elif exit_code != 0:
+        m["error"] = (err or out)[:300]
+    return m
+
+
 def run_bob(workspace, bcfg, timeout, raw_path=None, on_event=None,
             prompt=AGENT_PROMPT):
     """Bob prints progress text then a stats JSON tail; stream the text lines
@@ -491,6 +584,9 @@ def run_contestant(name, workspace, cfg, timeout, raw_path=None, target_name="du
         return run_baseline(workspace, cfg, timeout, raw_path, target_name, on_event)
     if name == "claude":
         return run_claude(workspace, cfg.get("contestants", {}).get("claude", {}),
+                          timeout, raw_path, on_event, prompt)
+    if name == "cursor":
+        return run_cursor(workspace, cfg.get("contestants", {}).get("cursor", {}),
                           timeout, raw_path, on_event, prompt)
     if name == "bob":
         return run_bob(workspace, cfg.get("contestants", {}).get("bob", {}),

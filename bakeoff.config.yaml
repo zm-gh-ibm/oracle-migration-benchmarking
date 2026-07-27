@@ -12,10 +12,13 @@ run:
   planning_phase: true        # phase 1: agents write plan/MIGRATION_PLAN.md,
                               #   which is fed into phase 2 (the live migration)
   plan_timeout_s: 600         # kill a phase-1 planning run after this
-  contestants: [baseline, claude, bob]   # v2: add cursor
+  contestants: [baseline, claude, cursor, bob]
   target: postgres            # postgres | duckdb | snowflake
 
 # ---------- INPUT toggles: shape of the Oracle sources ----------
+# Cost guide (per full run, all contestants; excludes Cursor credits):
+#   cheap dev test:  tables [2,3], rows [10,20], no plan  → ~$1–2   (config.dev)
+#   standard demo:   tables [4,6], rows [40,120], plan on → ~$10–15 (this file / config.demo)
 input:
   tables_per_db: [4, 6]       # [min, max] tables per database
   rows_per_table: [40, 120]   # [min, max] rows per table
@@ -38,7 +41,8 @@ output:
     checksum_match_rate: true # numeric column checksums vs ground truth
     lines_of_code: true       # non-blank lines of SQL the agent produced
     wall_time_s: true
-    cost_usd: true            # claude reports directly; bob best-effort
+    cost_usd: true            # claude reports directly; bob best-effort;
+                              #   cursor reports none (bills in Cursor credits)
     tokens: true
     turns: true
   per_db_breakdown: true      # include per-database detail tables
@@ -64,6 +68,10 @@ contestants:
     cmd: claude
     model: opus                # pinned so results are reproducible run-to-run
     max_turns: 50
+  cursor:
+    cmd: cursor-agent          # real Cursor CLI — spends Cursor plan credits
+    model: null                # null = Cursor's default model ("Cursor as shipped");
+                               #   pin e.g. sonnet-4 for run-to-run reproducibility
   bob:
     cmd: bob
     chat_mode: code

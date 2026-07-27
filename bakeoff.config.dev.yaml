@@ -1,0 +1,59 @@
+# ============================================================
+# Oracle -> Lakehouse Migration Bakeoff — cheap dev/test config
+# Small DBs, no planning phase, sonnet — for fast, low-cost
+# iteration on the harness itself (~$1–2 per run, all contestants).
+# Full-difficulty demo settings live in bakeoff.config.yaml.
+#
+#   python run_bakeoff.py --config bakeoff.config.dev.yaml
+# ============================================================
+
+run:
+  name: dev
+  seed: 42                    # deterministic source generation
+  num_databases: 2
+  parallelism: 5              # concurrent (contestant x db) agent runs
+  agent_timeout_s: 900
+  planning_phase: false       # skip phase 1 — saves ~40% cost and time
+  plan_timeout_s: 600
+  contestants: [baseline, claude, cursor, bob]
+  target: postgres            # postgres | duckdb | snowflake
+
+# ---------- INPUT toggles: shape of the Oracle sources ----------
+input:
+  tables_per_db: [2, 3]       # [4, 6] in the full config
+  rows_per_table: [10, 20]    # [40, 120] in the full config — CSV data is the
+                              #   largest context chunk; fewer rows = fewer tokens
+  domains: [hr, orders, inventory, finance]
+  oracle_features:
+    sequences_triggers: true
+    plsql: true
+    foreign_keys: true
+    check_constraints: true
+    comments: true
+    oracle_date_format: true
+    edge_cases: false
+
+# ---------- Contestant settings ----------
+contestants:
+  claude:
+    cmd: claude
+    model: sonnet              # sonnet for dev (~6x cheaper); opus in the full config
+    max_turns: 20              # 50 in the full config
+  cursor:
+    cmd: cursor-agent          # real Cursor CLI — spends Cursor plan credits
+    model: null                # null = Cursor's default model
+  bob:
+    cmd: bob
+    chat_mode: code
+    model: null
+    max_coins: null
+    usd_per_coin: 0.50
+
+# ---------- Target settings ----------
+targets:
+  postgres:
+    dsn: postgresql:///bakeoff
+  duckdb: {}
+  snowflake:
+    warehouse: COMPUTE_WH
+    database: BAKEOFF
