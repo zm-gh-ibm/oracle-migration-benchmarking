@@ -9,6 +9,7 @@ POST /run so the "Run bakeoff" button in the page can start a fresh run
 without touching the terminal. The page polls once a second.
 """
 import json
+import re
 import threading
 import time
 import webbrowser
@@ -44,11 +45,27 @@ class LiveRun:
                             "fields": list(t.get("fields", [])),
                             "rows": 0, "cols": None, "status": "pending"}
                            for t in (tables or [])],
-                "sql": [], "sql_ok": 0, "sql_err": 0}
+                "sql": [], "sql_ok": 0, "sql_err": 0,
+                "started_t": None, "loc": 0, "constraints": None}
 
     def job_status(self, contestant, db, status):
         with self.lock:
-            self.jobs[(contestant, db)]["status"] = status
+            job = self.jobs[(contestant, db)]
+            job["status"] = status
+            if status == "running" and job["started_t"] is None:
+                # run-relative start time so the dashboard can show live
+                # elapsed wall clock for in-flight jobs
+                job["started_t"] = round(time.monotonic() - self.started, 1)
+
+    def job_progress(self, contestant, db, loc=None, constraints=None):
+        """Live output progress: non-blank SQL lines written so far and the
+        constraint-preservation tally, polled while the agent works."""
+        with self.lock:
+            job = self.jobs[(contestant, db)]
+            if loc is not None:
+                job["loc"] = loc
+            if constraints is not None:
+                job["constraints"] = constraints
 
     def job_phase(self, contestant, db, phase):
         with self.lock:
@@ -137,6 +154,7 @@ class DashboardServer:
         self.cfg = cfg
         self.page_html = page_html
         self.on_run = on_run      # () -> bool: True if a run was started
+        self.on_cancel = None     # () -> bool: True if a running run was cancelled
         self.current = None       # the active/most recent LiveRun
         self.initial = initial    # last run's results.json payload, shown while idle
         self._server = None
@@ -157,6 +175,7 @@ class DashboardServer:
                        "run": self.cfg["run"], "input": self.cfg["input"],
                        "jobs": [], "events": [], "results": [], "summary": {}}
         payload["can_run"] = self.on_run is not None
+        payload["can_cancel"] = self.on_cancel is not None
         return payload
 
     def metrics(self):
@@ -253,20 +272,47 @@ class DashboardServer:
                         self._send(200, rj.read_bytes(), "application/json")
                     else:
                         self._send(404, b'{"error":"not found"}', "application/json")
+                elif route.startswith("/log/"):
+                    # raw agent transcript: /log/<contestant>__<db>[__plan]
+                    name = route.split("/log/")[1].split("?")[0]
+                    if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+                        self._send(400, b"bad name", "text/plain")
+                    else:
+                        run_name = srv.cfg["run"]["name"]
+                        lf = (Path(__file__).resolve().parent.parent /
+                              "runs" / run_name / "agent_logs" / f"{name}.log")
+                        if lf.exists():
+                            data = lf.read_bytes()
+                            if len(data) > 400_000:   # tail-cap huge transcripts
+                                data = b"[... truncated ...]\n" + data[-400_000:]
+                            self._send(200, data, "text/plain; charset=utf-8")
+                        else:
+                            self._send(404, b"no transcript (yet)", "text/plain")
                 else:
                     self._send(200, srv.page_html.encode(), "text/html; charset=utf-8")
 
             def do_POST(self):
-                if self.path.split("?")[0] != "/run":
-                    self._send(404, b'{"error": "not found"}', "application/json")
-                elif srv.on_run is None:
-                    self._send(405, b'{"error": "server not in --serve mode"}',
-                               "application/json")
-                elif srv.on_run():
-                    self._send(202, b'{"started": true}', "application/json")
+                path = self.path.split("?")[0]
+                if path == "/run":
+                    if srv.on_run is None:
+                        self._send(405, b'{"error": "server not in --serve mode"}',
+                                   "application/json")
+                    elif srv.on_run():
+                        self._send(202, b'{"started": true}', "application/json")
+                    else:
+                        self._send(409, b'{"error": "a run is already in progress"}',
+                                   "application/json")
+                elif path == "/cancel":
+                    if srv.on_cancel is None:
+                        self._send(405, b'{"error": "cancel not available"}',
+                                   "application/json")
+                    elif srv.on_cancel():
+                        self._send(202, b'{"cancelling": true}', "application/json")
+                    else:
+                        self._send(409, b'{"error": "no run in progress"}',
+                                   "application/json")
                 else:
-                    self._send(409, b'{"error": "a run is already in progress"}',
-                               "application/json")
+                    self._send(404, b'{"error": "not found"}', "application/json")
 
             def log_message(self, *args):
                 pass

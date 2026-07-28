@@ -41,7 +41,9 @@ contestants:
     max_turns: 20              # 50 in the full config
   cursor:
     cmd: cursor-agent          # real Cursor CLI — spends Cursor plan credits
-    model: null                # null = Cursor's default model
+    model: composer-2.5        # Cursor's own model (pinned for reproducibility)
+    usd_per_1m_input: 1.25     # ESTIMATE — Cursor bills plan credits, not tokens;
+    usd_per_1m_output: 10.00   #   we price the run from token counts. Tune to your plan.
   bob:
     cmd: bob
     chat_mode: code

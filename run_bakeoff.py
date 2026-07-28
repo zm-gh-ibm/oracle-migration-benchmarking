@@ -20,7 +20,9 @@ from datetime import datetime
 from pathlib import Path
 
 from bakeoff.config import load_config
-from bakeoff.contestants import run_contestant, write_planning_task, write_task_file
+from bakeoff.contestants import (cancel_all, cancel_requested, reset_cancel,
+                                 run_contestant, write_planning_task,
+                                 write_task_file)
 from bakeoff.live import DashboardServer, LiveRun
 from bakeoff.oracle_gen import generate_fleet
 from bakeoff.quality import (LiveQualityWatcher, apply_exemptions, dev_findings,
@@ -28,7 +30,8 @@ from bakeoff.quality import (LiveQualityWatcher, apply_exemptions, dev_findings,
 from bakeoff.report import write_reports
 from bakeoff.shadow import ShadowExecutor
 from bakeoff.targets import TARGETS
-from bakeoff.validate import loc_of_migration, validate_workspace
+from bakeoff.validate import (constraint_preservation, loc_of_migration,
+                              validate_workspace)
 from bakeoff.visualize import render_live_page
 
 ROOT = Path(__file__).resolve().parent
@@ -46,6 +49,13 @@ def prepare_workspace(src_db_dir, ws_dir, target_cls):
 
 
 def run_job(contestant, db_name, ws_dir, manifest, cfg, raw_dir, live=None):
+    if cancel_requested():
+        # run was cancelled while this job sat in the queue — skip it entirely
+        print(f"  ⊘ {contestant} × {db_name} skipped (run cancelled)", flush=True)
+        if live:
+            live.job_status(contestant, db_name, "cancelled")
+            live.event(contestant, db_name, "status", "skipped — run cancelled")
+        return None
     timeout = cfg["run"]["agent_timeout_s"]
     target_name = cfg["run"]["target"]
     target_cls = TARGETS[target_name]
@@ -150,10 +160,28 @@ def run_job(contestant, db_name, ws_dir, manifest, cfg, raw_dir, live=None):
                                 pacing_s=flow_pacing)
         shadow.start()
 
+    # progress poller: while the agent works, report lines-of-SQL written and
+    # constraint preservation so far, so the metric cards update live
+    prog_halt = None
+    if live:
+        prog_halt = threading.Event()
+
+        def _poll_progress():
+            while not prog_halt.wait(2.0):
+                try:
+                    live.job_progress(contestant, db_name,
+                                      loc=loc_of_migration(ws_dir),
+                                      constraints=constraint_preservation(ws_dir))
+                except Exception:
+                    pass
+        threading.Thread(target=_poll_progress, daemon=True).start()
+
     try:
         agent_metrics = run_contestant(contestant, ws_dir, cfg, timeout, raw_path,
                                        target_name, on_event)
     finally:
+        if prog_halt:
+            prog_halt.set()
         if watcher:
             watcher.stop()
         if shadow:
@@ -267,6 +295,7 @@ def _print_run_summary(cfg):
 
 def execute_run(cfg, live=None):
     """One full bakeoff: generate the fleet, run every job, write reports."""
+    reset_cancel()          # a previous run's ⏹ Cancel must not block this one
     _print_run_summary(cfg)
     run_name = cfg["run"]["name"]
     target_cls = TARGETS[cfg["run"]["target"]]
@@ -306,7 +335,11 @@ def execute_run(cfg, live=None):
         futs = [pool.submit(run_job, c, d, w, m, cfg, raw_dir, live)
                 for c, d, w, m in jobs]
         for fut in as_completed(futs):
-            results.append(fut.result())
+            r = fut.result()
+            if r is not None:      # None = job skipped by a mid-run cancel
+                results.append(r)
+    if cancel_requested():
+        print("Run cancelled — reporting completed jobs only.", flush=True)
 
     # 3. report
     if live:
@@ -361,7 +394,18 @@ def serve_forever(cfg, args):
         threading.Thread(target=do_run, daemon=True).start()
         return True
 
+    def on_cancel():
+        if not running.locked():
+            return False  # nothing to cancel
+        cancel_all()
+        if server.current:
+            server.current.event("-", "-", "issue",
+                                 "[cancel] ⏹ run cancelled — stopping agents, "
+                                 "queued jobs skipped")
+        return True
+
     server.on_run = on_run
+    server.on_cancel = on_cancel
     try:
         url = server.serve(args.live_port, open_browser=not args.no_browser)
     except OSError as e:
@@ -467,6 +511,16 @@ def main():
         live = LiveRun(cfg)
         server = DashboardServer(cfg, render_live_page())
         server.attach(live)
+
+        def _once_cancel():
+            if live.done:
+                return False
+            cancel_all()
+            live.event("-", "-", "issue",
+                       "[cancel] ⏹ run cancelled — stopping agents, "
+                       "queued jobs skipped")
+            return True
+        server.on_cancel = _once_cancel
         try:
             url = server.serve(args.live_port, open_browser=not args.no_browser)
             print(f"Live dashboard: {url}")

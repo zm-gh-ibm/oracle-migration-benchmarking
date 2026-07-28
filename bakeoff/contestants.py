@@ -175,8 +175,38 @@ def _parse_json_tail(out):
     return None
 
 
+# ---- run cancellation ----------------------------------------------------
+# The dashboard's ⏹ Cancel button sets _CANCEL and kills every live agent
+# subprocess; queued jobs then short-circuit before spawning anything.
+_CANCEL = threading.Event()
+_ACTIVE_PROCS = set()
+_PROC_LOCK = threading.Lock()
+
+
+def reset_cancel():
+    _CANCEL.clear()
+
+
+def cancel_requested():
+    return _CANCEL.is_set()
+
+
+def cancel_all():
+    """Kill all running agent subprocesses and block new ones from starting."""
+    _CANCEL.set()
+    with _PROC_LOCK:
+        procs = list(_ACTIVE_PROCS)
+    for p in procs:
+        try:
+            p.kill()
+        except Exception:
+            pass
+
+
 def _run_subprocess(cmd, workspace, timeout, raw_path, on_line=None):
     """Run cmd, streaming stdout line-by-line to on_line as it arrives."""
+    if _CANCEL.is_set():
+        return -2, "", "CANCELLED before start", 0.0
     env = {k: v for k, v in os.environ.items()
            if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
     start = time.monotonic()
@@ -184,6 +214,8 @@ def _run_subprocess(cmd, workspace, timeout, raw_path, on_line=None):
     proc = subprocess.Popen(
         cmd, cwd=str(workspace), env=env, stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    with _PROC_LOCK:
+        _ACTIVE_PROCS.add(proc)
 
     def _pump(stream, sink, cb):
         for line in stream:
@@ -200,12 +232,15 @@ def _run_subprocess(cmd, workspace, timeout, raw_path, on_line=None):
         t.start()
     try:
         exit_code = proc.wait(timeout=timeout)
-        err_extra = ""
+        err_extra = "CANCELLED by user" if _CANCEL.is_set() and exit_code != 0 else ""
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
         exit_code = -1
         err_extra = f"TIMEOUT after {timeout}s"
+    finally:
+        with _PROC_LOCK:
+            _ACTIVE_PROCS.discard(proc)
     for t in readers:
         t.join(timeout=5)
     out, err = "".join(out_lines), err_extra or "".join(err_lines)
@@ -256,6 +291,9 @@ def run_claude(workspace, ccfg, timeout, raw_path=None, on_event=None,
                     if on_event:
                         on_event("tool", _summarize_tool_use(
                             block.get("name", "?"), block.get("input")))
+                elif block.get("type") == "thinking" and block.get("thinking", "").strip():
+                    if on_event:  # extended-thinking trace, when the model emits one
+                        on_event("think", block["thinking"].strip()[:280])
                 elif block.get("type") == "text" and block.get("text", "").strip():
                     if on_event:
                         on_event("text", block["text"].strip())
@@ -276,7 +314,12 @@ def run_claude(workspace, ccfg, timeout, raw_path=None, on_event=None,
         m["tokens_in"] = usage.get("input_tokens")
         m["tokens_out"] = usage.get("output_tokens")
         if final.get("is_error"):
-            m["error"] = str(final.get("result"))[:300]
+            # `result` can be null (e.g. max-turns) — fall back to the errors
+            # array / subtype so QA findings show the real reason
+            msg = (final.get("result")
+                   or "; ".join(final.get("errors") or [])
+                   or final.get("subtype") or "unknown error")
+            m["error"] = str(msg)[:300]
     elif exit_code != 0:
         m["error"] = (err or out)[:300]
     return m
@@ -343,7 +386,7 @@ def run_cursor(workspace, ccfg, timeout, raw_path=None, on_event=None,
                 text = "".join(thinking).strip()
                 thinking.clear()
                 if text and on_event:
-                    on_event("text", text)
+                    on_event("think", text[:280])
         elif etype == "tool_call" and evt.get("subtype") == "started":
             tool_calls[0] += 1
             if on_event:
@@ -361,11 +404,25 @@ def run_cursor(workspace, ccfg, timeout, raw_path=None, on_event=None,
     m["exit_code"], m["wall_time_s"] = exit_code, wall
     if final:
         usage = final.get("usage", {})
-        m["tokens_in"] = usage.get("inputTokens")
-        m["tokens_out"] = usage.get("outputTokens")
+        ti = usage.get("inputTokens")
+        to = usage.get("outputTokens")
+        m["tokens_in"] = ti
+        m["tokens_out"] = to
+        m["cache_read_tokens"] = usage.get("cacheReadTokens")
         m["turns"] = tool_calls[0] or None   # CLI reports no turn count; tool calls ≈ turns
-        # cursor-agent reports no dollar cost — Cursor bills in plan credits.
-        m["cost_source"] = "not reported (Cursor credits)"
+        # cursor-agent reports no dollar cost — Cursor bills in plan credits. We
+        # estimate USD from token counts using configurable per-1M-token rates
+        # (like Bob's coin→USD conversion); leave both rates unset to keep "—".
+        pin = ccfg.get("usd_per_1m_input")
+        pout = ccfg.get("usd_per_1m_output")
+        if (ti or to) and (pin is not None or pout is not None):
+            m["cost_usd"] = round((ti or 0) / 1e6 * (pin or 0)
+                                  + (to or 0) / 1e6 * (pout or 0), 4)
+            m["cost_source"] = (f"est. {(ti or 0) / 1e6:.3f}M in×${pin or 0}/M + "
+                                f"{(to or 0) / 1e6:.3f}M out×${pout or 0}/M "
+                                f"(Cursor bills credits, not tokens)")
+        else:
+            m["cost_source"] = "not reported (Cursor credits)"
         if final.get("is_error"):
             m["error"] = str(final.get("result"))[:300]
     elif exit_code != 0:

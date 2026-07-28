@@ -34,6 +34,9 @@ def summarize(results):
                                     sum(x["tables_expected"] for x in v)),
             "checksum_match_rate": _rate(sum(x["checksums_ok"] for x in v),
                                          sum(x["checksums_expected"] for x in v)),
+            "constraint_preservation": _rate(
+                sum(x.get("constraints", {}).get("preserved", 0) for x in v),
+                sum(x.get("constraints", {}).get("expected", 0) for x in v)),
             "lines_of_code": sum(r["loc"] for r in rs),
             "wall_time_s": round(sum(r["agent"]["wall_time_s"] or 0 for r in rs), 1),
             "cost_usd": round(sum(costs), 4) if costs else None,

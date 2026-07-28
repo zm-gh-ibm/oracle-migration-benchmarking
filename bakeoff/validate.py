@@ -1,7 +1,47 @@
 """Validate a contestant's migrated output against the ground-truth manifest."""
+import re
 from pathlib import Path
 
 from .targets import TARGETS
+
+# Constraint kinds counted for the preservation metric. Regex counts over
+# comment-stripped DDL — deliberately syntax-level (CREATE TABLE inline or
+# ALTER TABLE ADD both count), applied identically to source and migrated SQL
+# so the ratio is comparable across contestants.
+_CONSTRAINT_KINDS = [
+    ("primary_key", re.compile(r"PRIMARY\s+KEY", re.IGNORECASE)),
+    ("foreign_key", re.compile(r"\bREFERENCES\b", re.IGNORECASE)),
+    ("check", re.compile(r"\bCHECK\s*\(", re.IGNORECASE)),
+    ("unique", re.compile(r"\bUNIQUE\b", re.IGNORECASE)),
+    ("not_null", re.compile(r"NOT\s+NULL", re.IGNORECASE)),
+]
+
+
+def _strip_sql_comments(sql_text):
+    sql_text = re.sub(r"--[^\n]*", "", sql_text)
+    return re.sub(r"/\*.*?\*/", "", sql_text, flags=re.DOTALL)
+
+
+def constraint_preservation(workspace):
+    """Count PK/FK/CHECK/UNIQUE/NOT NULL constraints in the Oracle source vs
+    the migrated DDL. preserved = sum over kinds of min(migrated, source) —
+    extra constraints the agent invented don't inflate the score."""
+    workspace = Path(workspace)
+    out = {"expected": 0, "preserved": 0, "by_kind": {}}
+    src_file = workspace / "source" / "schema.sql"
+    mig_file = workspace / "migrated" / "schema.sql"
+    if not src_file.exists():
+        return out
+    src = _strip_sql_comments(src_file.read_text())
+    mig = _strip_sql_comments(mig_file.read_text()) if mig_file.exists() else ""
+    for kind, pat in _CONSTRAINT_KINDS:
+        n_src = len(pat.findall(src))
+        n_mig = len(pat.findall(mig))
+        kept = min(n_src, n_mig)
+        out["by_kind"][kind] = {"source": n_src, "migrated": n_mig}
+        out["expected"] += n_src
+        out["preserved"] += kept
+    return out
 
 
 def validate_workspace(workspace, manifest, target_name, target_cfg=None,
@@ -35,6 +75,7 @@ def validate_workspace(workspace, manifest, target_name, target_cfg=None,
     load_sql = workspace / "migrated" / "load.sql"
     result["schema_file_exists"] = schema_sql.exists()
     result["load_file_exists"] = load_sql.exists()
+    result["constraints"] = constraint_preservation(workspace)
     if not schema_sql.exists():
         return result
 

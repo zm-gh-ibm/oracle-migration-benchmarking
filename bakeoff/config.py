@@ -41,7 +41,8 @@ DEFAULTS = {
     },
     "contestants": {
         "claude": {"cmd": "claude", "model": "opus", "max_turns": 50},
-        "cursor": {"cmd": "cursor-agent", "model": None},  # None = Cursor's default model
+        "cursor": {"cmd": "cursor-agent", "model": None,   # None = Cursor's default model
+                   "usd_per_1m_input": 1.25, "usd_per_1m_output": 10.0},  # est. — Cursor bills credits
         "bob": {"cmd": "bob", "chat_mode": "code", "model": None, "max_coins": None,
                 "usd_per_coin": 0.50},
     },

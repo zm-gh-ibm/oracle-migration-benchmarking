@@ -22,56 +22,68 @@ _HEAD = """<meta charset="utf-8">
 <title>Oracle → Lakehouse Bakeoff</title>
 <style>
 .viz-root {
+  /* IBM Carbon (Gray 10 theme) — palette validated for CVD + contrast */
   color-scheme: light;
-  --page:      #f9f9f7;
-  --surface-1: #fcfcfb;
-  --ink-1:     #0b0b0b;
-  --ink-2:     #52514e;
-  --muted:     #898781;
-  --grid:      #e1e0d9;
-  --baseline:  #c3c2b7;
-  --border:    rgba(11,11,11,0.10);
-  --s1: #2a78d6;  /* blue  — bob */
-  --s2: #eb6834;  /* orange — claude */
-  --s3: #1baf7a;  /* green — cursor (v2) */
-  --sgray: #898781;  /* baseline reference */
-  --good: #0ca30c;
-  --good-text: #006300;
-  --critical: #d03b3b;
+  --page:      #f4f4f4;
+  --surface-1: #ffffff;
+  --ink-1:     #161616;
+  --ink-2:     #525252;
+  --muted:     #6f6f6f;
+  --grid:      #e0e0e0;
+  --baseline:  #c6c6c6;
+  --border:    #e0e0e0;
+  --brand:     #0f62fe;  /* IBM Blue 60 */
+  --s1: #0f62fe;  /* IBM Blue 60 — bob */
+  --s2: #ba4e00;  /* Carbon orange 60 — claude */
+  --s3: #198038;  /* Carbon green 60 — cursor */
+  --sgray: #8d8d8d;  /* baseline reference (neutral, always direct-labeled) */
+  --good: #24a148;
+  --good-text: #0e6027;
+  --critical: #da1e28;  /* Carbon red 60 */
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) .viz-root {
+    /* Carbon Gray 100 theme; same validated hue trio holds on #262626 */
     color-scheme: dark;
-    --page: #0d0d0d; --surface-1: #1a1a19;
-    --ink-1: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
-    --good: #0ca30c; --good-text: #0ca30c; --critical: #d03b3b;
+    --page: #161616; --surface-1: #262626;
+    --ink-1: #f4f4f4; --ink-2: #c6c6c6; --muted: #8d8d8d;
+    --grid: #393939; --baseline: #494949; --border: #393939;
+    --brand: #4589ff;
+    --s1: #0f62fe; --s2: #ba4e00; --s3: #198038;
+    --good: #42be65; --good-text: #42be65; --critical: #fa4d56;
   }
 }
 :root[data-theme="dark"] .viz-root {
   color-scheme: dark;
-  --page: #0d0d0d; --surface-1: #1a1a19;
-  --ink-1: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
-  --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
-  --good: #0ca30c; --good-text: #0ca30c; --critical: #d03b3b;
+  --page: #161616; --surface-1: #262626;
+  --ink-1: #f4f4f4; --ink-2: #c6c6c6; --muted: #8d8d8d;
+  --grid: #393939; --baseline: #494949; --border: #393939;
+  --brand: #4589ff;
+  --s1: #0f62fe; --s2: #ba4e00; --s3: #198038;
+  --good: #42be65; --good-text: #42be65; --critical: #fa4d56;
 }
 .viz-root {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--page); color: var(--ink-1);
   margin: 0; padding: 28px 20px 48px; min-height: 100vh; box-sizing: border-box;
 }
 .wrap { max-width: 1060px; margin: 0 auto; }
-h1 { font-size: 22px; font-weight: 650; margin: 0 0 6px; }
+h1 { font-size: 26px; font-weight: 400; margin: 0 0 6px; letter-spacing: 0; }
 .titlerow { display: flex; align-items: flex-start; justify-content: space-between;
-            gap: 14px; }
-#runbtn { font: inherit; font-size: 13px; font-weight: 600; padding: 8px 18px;
-          border-radius: 8px; border: 1px solid var(--border); cursor: pointer;
-          background: var(--s1); color: #fff; white-space: nowrap; }
-#runbtn:hover:not(:disabled) { filter: brightness(1.1); }
+            gap: 14px; padding-top: 10px; border-top: 3px solid var(--brand); }
+#runbtn { font: inherit; font-size: 14px; font-weight: 400; padding: 10px 18px;
+          border-radius: 0; border: 1px solid transparent; cursor: pointer;
+          background: #0f62fe; color: #fff; white-space: nowrap; }
+#runbtn:hover:not(:disabled) { background: #0353e9; }
 #runbtn:disabled { background: var(--surface-1); color: var(--muted);
                    cursor: default; }
+#cancelbtn { font: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px;
+             border-radius: 8px; border: 1px solid var(--critical);
+             cursor: pointer; background: transparent; color: var(--critical);
+             white-space: nowrap; }
+#cancelbtn:hover:not(:disabled) { background: var(--critical); color: #fff; }
+#cancelbtn:disabled { border-color: var(--border); color: var(--muted);
+                      cursor: default; }
 .meta { color: var(--ink-2); font-size: 13px; display: flex; flex-wrap: wrap;
         gap: 6px 14px; margin-bottom: 22px; }
 .meta b { color: var(--ink-1); font-weight: 600; }
@@ -124,12 +136,13 @@ tr:last-child td { border-bottom: none; }
 .okword { color: var(--good-text); font-weight: 600; }
 .badword { color: var(--critical); font-weight: 600; }
 .foot { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 18px; }
-#tip { position: fixed; pointer-events: none; background: var(--surface-1);
-       border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px;
-       font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); display: none;
-       z-index: 10; max-width: 260px; }
-#tip .tv { font-weight: 650; font-size: 13px; }
-#tip .tl { color: var(--ink-2); margin-top: 1px; }
+#tip { position: fixed; pointer-events: none; background: rgba(18, 22, 27, .96);
+       border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 8px 11px;
+       font-size: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.4); display: none;
+       z-index: 10; max-width: 420px; }
+#tip .tv { font-weight: 650; font-size: 13px; color: #fff; }
+#tip .tl { color: #b8c2cc; margin-top: 1px; overflow-wrap: anywhere;
+           white-space: pre-wrap; }
 
 /* ---- live activity feed ---- */
 #livedot { width: 9px; height: 9px; border-radius: 50%; display: inline-block;
@@ -231,6 +244,43 @@ tr:last-child td { border-bottom: none; }
 .fe.sql .etx { color: var(--ink-2); font-style: italic; }
 .fe.phase .etx { color: var(--ink-1); font-weight: 700; }
 .fe.phase { border-top: 1px dashed var(--grid); margin-top: 3px; padding-top: 3px; }
+.fe.think .etx { color: var(--muted); font-style: italic; opacity: .85; }
+.feedcols.hidethink .fe.think { display: none; }
+.thinktoggle { font-size: 11.5px; color: var(--ink-2); display: inline-flex;
+               gap: 5px; align-items: center; cursor: pointer; user-select: none;
+               margin-left: 12px; }
+.chip.xs { cursor: pointer; }
+.chip.xs:hover { border-color: var(--ink-2); }
+.nowdoing { font-size: 11px; color: var(--muted); font-weight: 400;
+            max-width: 46%; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; margin-left: 10px; font-family: ui-monospace,
+            SFMono-Regular, Menlo, monospace; }
+/* tool-mix fingerprint */
+.tmrow { display: flex; align-items: center; gap: 10px; margin: 7px 0; }
+.tmrow .rlabel { flex: none; width: 76px; font-size: 12.5px; font-weight: 600; }
+.tmbar { display: flex; height: 18px; border-radius: 5px; overflow: hidden;
+         flex: 1; background: var(--surface-2); }
+.tmseg { height: 100%; min-width: 1px; }
+.tmnum { flex: none; font-size: 11.5px; color: var(--ink-2); width: 60px;
+         text-align: right; }
+.tmlegend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px;
+            color: var(--ink-2); margin-top: 8px; }
+.tmlegend .sw { width: 10px; height: 10px; border-radius: 3px; display:
+                inline-block; margin-right: 5px; vertical-align: -1px; }
+/* job timeline */
+.tlrow { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+.tlrow .rlabel { flex: none; width: 150px; font-size: 11.5px; font-weight: 600;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tltrack { position: relative; flex: 1; height: 16px; background:
+           var(--surface-2); border-radius: 4px; }
+.tlev { position: absolute; top: 2px; width: 6px; height: 12px;
+        border-radius: 2px; }
+.tlev:hover { transform: scaleX(1.6); z-index: 2; outline: 1px solid var(--ink-1); }
+.tlrow .rlabel.tlfail { color: var(--critical) !important; }
+.tlspan { position: absolute; top: 6px; height: 4px; border-radius: 2px;
+          opacity: .35; }
+.tlaxis { display: flex; justify-content: space-between; font-size: 10.5px;
+          color: var(--muted); margin: 3px 0 0 160px; }
 .planbox { border: 1px dashed var(--grid); border-radius: 6px; padding: 6px 9px;
            margin: 2px 0 7px; font-size: 11px; color: var(--ink-2); }
 .planbox .ph { font-weight: 650; color: var(--ink-1); margin-bottom: 3px; }
@@ -261,6 +311,19 @@ tr:last-child td { border-bottom: none; }
            font-size: 11.5px; line-height: 1.55; color: var(--ink-2); }
 @media (max-width: 760px) { .dbgroups { margin: 8px 0 2px; } }
 
+/* ---- IBM Carbon overrides: sharp containers, IBM Plex Mono for data ---- */
+.tile, .card, .btrack, .planbox, .sqlbox, #pm-panel, .tmbar, .tltrack,
+.tlspan, .feed, .legend .sw, .sw, #historySel, #exportBtn, #cancelbtn,
+#dbglog, #dbgPause, #dbgClear, #dbgSnap { border-radius: 0 !important; }
+#tip { border-radius: 2px; }
+.tile { border-left: 3px solid var(--grid); }
+.tile:first-child { border-left-color: var(--brand); }
+.fe .et, .sqlbox, #pm-body, #dbglog, .nowdoing, .tile .val {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tile .val { font-weight: 400; font-size: 24px; }
+h2 { font-weight: 400; }
+button { letter-spacing: .16px; }
+
 /* ---- quality findings ---- */
 .qgroup { margin-bottom: 10px; }
 .qgroup:last-child { margin-bottom: 0; }
@@ -287,6 +350,7 @@ _BODY = """<div class="viz-root"><div class="wrap">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="historySel" style="display:none;font:inherit;font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1);cursor:pointer"></select>
       <button id="exportBtn" style="font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--surface-1);color:var(--ink-1);display:none">⬇ Export</button>
+      <button id="cancelbtn" style="display:none">⏹ Cancel</button>
       <button id="runbtn" style="display:none">▶ Run bakeoff</button>
     </div>
   </div>
@@ -300,8 +364,29 @@ _BODY = """<div class="viz-root"><div class="wrap">
   </div>
   <div class="card" id="livecard" style="margin-bottom:22px; display:none">
     <h2>Agent activity<span id="livedot" style="display:none"></span></h2>
-    <p class="note" id="livenote">tool calls and operations per contestant, streamed as they happen</p>
+    <p class="note" id="livenote">tool calls and operations per contestant, streamed as they happen<label class="thinktoggle"><input type="checkbox" id="showthink" checked> 🧠 show thinking</label><span class="note" style="margin-left:12px">· click a db chip for the full transcript 📜</span></p>
     <div class="feedcols" id="feedcols"></div>
+  </div>
+  <div class="card" id="timelinecard" style="margin-bottom:22px; display:none">
+    <h2>Job timeline — how each agent spent its time</h2>
+    <p class="note">every event per (contestant × database) placed on a shared clock — 🧠 thinking, reads, writes, shell, output. Long gaps = the model is generating; dense read clusters = exploration; writes at the end = single-shot strategy.</p>
+    <div id="timeline"></div>
+  </div>
+  <div class="card" id="toolmixcard" style="margin-bottom:22px; display:none">
+    <h2>Tool-mix fingerprint — strategy at a glance</h2>
+    <p class="note">how each agent divides its actions: explore (read/search) vs produce (write/edit) vs execute (shell) — e.g. heavy reading before writing = careful; instant writes = pattern-matching</p>
+    <div id="toolmix"></div>
+  </div>
+  <div class="card" id="debugcard" style="margin-bottom:22px; display:none">
+    <h2>🐞 Debug console</h2>
+    <p class="note">live viewership diagnostics — each poll's HTTP status &amp; payload size, when the DOM actually re-renders vs skips (fingerprint unchanged), and any JS error thrown while rendering. Enable “verbose” to log every 300&nbsp;ms poll.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
+      <button id="dbgPause" style="font:inherit;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1);cursor:pointer">pause</button>
+      <button id="dbgClear" style="font:inherit;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1);cursor:pointer">clear</button>
+      <button id="dbgSnap" style="font:inherit;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1);cursor:pointer">dump snapshot</button>
+      <label style="display:flex;gap:5px;align-items:center;cursor:pointer;user-select:none"><input type="checkbox" id="dbgVerbose"> verbose (every poll)</label>
+    </div>
+    <div id="dbglog" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.6;background:#0d1117;color:#c9d1d9;border-radius:8px;padding:10px 12px;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-word"></div>
   </div>
   <div class="card" id="qualitycard" style="margin-bottom:22px; display:none">
     <h2>Testing layer — agent mistakes</h2>
@@ -417,7 +502,14 @@ function renderKpis(DATA, order) {
   const done = DATA.results.length;
   const ok = DATA.results.filter(r => r.validation.success).length;
   const planTime = DATA.results.reduce((a, r) => a + ((r.plan || {}).agent?.wall_time_s || 0), 0);
-  const agentTime = DATA.results.reduce((a, r) => a + (r.agent.wall_time_s || 0), 0) + planTime;
+  // live: in-flight jobs contribute their elapsed clock so the tile ticks
+  const doneKeys = new Set(DATA.results.map(r => r.contestant + "|" + r.db));
+  const liveTime = (DATA.jobs || [])
+    .filter(j => j.status === "running" && j.started_t != null &&
+                 !doneKeys.has(j.contestant + "|" + j.db))
+    .reduce((a, j) => a + Math.max(0, (DATA.elapsed_s || 0) - j.started_t), 0);
+  const agentTime = DATA.results.reduce((a, r) => a + (r.agent.wall_time_s || 0), 0)
+    + planTime + liveTime;
   const costs = DATA.results.map(r => r.agent.cost_usd).filter(c => c != null);
   const planCosts = DATA.results.map(r => (r.plan || {}).agent?.cost_usd).filter(c => c != null);
   const spend = costs.reduce((a, c) => a + c, 0) + planCosts.reduce((a, c) => a + c, 0);
@@ -434,7 +526,32 @@ function renderKpis(DATA, order) {
   else
     tile("Migration jobs", String(totalJobs), order.length + " contestants × " + dbCount + " databases");
   tile("Fully successful", ok + "/" + (done || totalJobs), done ? Math.round(100 * ok / done) + "% of finished jobs passed every check" : "waiting for first result");
+
+  // rows migrated — live from job counters, authoritative once validation lands
+  const jrows = DATA.jobs || [];
+  const rowsMoved = jrows.reduce((a, j) => a + (j.rows_moved || 0), 0);
+  const rowsExp = jrows.reduce((a, j) => a + (j.rows_expected || 0), 0);
+  if (rowsExp)
+    tile("Rows migrated", fmtInt(rowsMoved) + " / " + fmtInt(rowsExp),
+      Math.round(100 * rowsMoved / rowsExp) + "% of source rows in the target");
+
+  // SQL statement volume — shadow execution + validation counters
+  const stmts = jrows.reduce((a, j) => a + (j.sql_ok || 0) + (j.sql_err || 0), 0);
+  const stmtErrs = jrows.reduce((a, j) => a + (j.sql_err || 0), 0);
+  if (stmts)
+    tile("SQL statements", fmtInt(stmts),
+      stmtErrs ? stmtErrs + " failed — see SQL + QA errors" : "all executed clean");
+
   tile("Total agent time", agentTime >= 120 ? (agentTime / 60).toFixed(1) + " min" : Math.round(agentTime) + "s", "wall clock across both phases");
+
+  // run clock — freeze at the last event once the run is done
+  if (DATA.live) {
+    const lastT = (DATA.events || []).length
+      ? DATA.events[DATA.events.length - 1].t : DATA.elapsed_s || 0;
+    const clock = DATA.done ? lastT : (DATA.elapsed_s || 0);
+    tile("Run clock", clock >= 120 ? (clock / 60).toFixed(1) + " min" : Math.round(clock) + "s",
+      DATA.done ? "total run duration" : "elapsed — parallelism hides agent time");
+  }
   tile("Total spend", fmtUsd(spend) || "—", costGap.length ? "both phases; reported costs only — " + costGap.join(", ") + " reports none" : "planning + migration");
 
   // cost-normalized ROI: successful migrations per dollar spent, per contestant
@@ -451,6 +568,21 @@ function renderKpis(DATA, order) {
     ).join(" · ");
     tile("Best ROI", best.label,
       roiStr + " — successful migrations per dollar (baseline excluded, free)");
+  }
+
+  // fastest agent — lowest average migration wall clock among fully successful
+  // jobs (baseline excluded: a rule-based script wins on speed by definition)
+  const fastRows = order.filter(c => c !== "baseline").map(c => {
+    const winsR = DATA.results.filter(r => r.contestant === c && r.validation.success);
+    if (!winsR.length) return null;
+    const avg = winsR.reduce((a, r) => a + (r.agent.wall_time_s || 0), 0) / winsR.length;
+    return { label: c, avg };
+  }).filter(Boolean);
+  if (fastRows.length) {
+    const fbest = fastRows.reduce((a, r) => (r.avg < a.avg ? r : a), fastRows[0]);
+    tile("Fastest agent", fbest.label,
+      fastRows.map(r => r.label + " " + fmtSec(r.avg)).join(" · ") +
+      " — avg per successful migration (baseline excluded)");
   }
 
   const withQ = DATA.results.filter(r => r.quality);
@@ -546,6 +678,16 @@ function renderFlow(DATA, order) {
     const head = el("div", "lanehead");
     const sw = el("span", "sw"); sw.style.background = color;
     head.append(sw, document.createTextNode(c));
+    // "now doing" ticker: the agent's most recent action, live
+    if (DATA.live && !DATA.done) {
+      const acts = (DATA.events || []).filter(e =>
+        e.contestant === c && (e.kind === "tool" || e.kind === "think"));
+      if (acts.length) {
+        const last = acts[acts.length - 1];
+        head.append(el("span", "nowdoing",
+          (last.kind === "think" ? "🧠 " : "→ ") + last.text));
+      }
+    }
     head.append(el("span", "lanerows",
       total ? fmtInt(moved) + " / " + fmtInt(total) + " rows moved"
             : fmtInt(moved) + " rows moved"));
@@ -724,6 +866,15 @@ function renderFeed(DATA, order) {
         events.length + " events · live";
   }
   const cols = byId("feedcols");
+  // preserve each column's scroll position across re-renders: keep the user's
+  // place when they scrolled up; stick to bottom only if they were at bottom
+  const scrollPrev = {};
+  for (const f of cols.querySelectorAll(".feed")) {
+    scrollPrev[f.dataset.c] = {
+      top: f.scrollTop,
+      atBottom: f.scrollHeight - f.scrollTop - f.clientHeight < 30,
+    };
+  }
   cols.replaceChildren();
   for (const c of order) {
     const col = el("div", "feedcol");
@@ -736,35 +887,187 @@ function renderFeed(DATA, order) {
       const chips = el("div", "chips");
       for (const j of myJobs) {
         const cls = j.status === "done" ? (j.success ? "pass" : "fail")
-                  : j.status === "running" ? "running" : "";
+                  : j.status === "running" ? "running"
+                  : j.status === "cancelled" ? "fail" : "";
         const mark = j.status === "done" ? (j.success ? " ✓" : " ✗")
-                   : j.status === "running" ? " …" : "";
-        chips.append(el("span", "chip " + cls, j.db + mark));
+                   : j.status === "running" ? " …"
+                   : j.status === "cancelled" ? " ⊘" : "";
+        const chip = el("span", "chip xs " + cls, j.db + mark + " 📜");
+        chip.title = "view full transcript";
+        chip.addEventListener("click", () => openTranscript(c, j.db));
+        chips.append(chip);
       }
       col.append(chips);
     }
     const feed = el("div", "feed");
+    feed.dataset.c = c;
     const mine = events.filter(e => e.contestant === c).slice(-FEED_CAP);
     for (const e of mine) {
       const row = el("div", "fe " + (e.kind || "text"));
       row.append(el("span", "et", e.t.toFixed(1) + "s"),
                  el("span", "edb", e.db),
-                 el("span", "etx", e.text));
+                 el("span", "etx", (e.kind === "think" ? "🧠 " : "") + e.text));
       feed.append(row);
     }
     if (!mine.length) feed.append(el("div", "fe", "— no activity yet —"));
     col.append(feed);
     cols.append(col);
-    requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
+    const prev = scrollPrev[c];
+    requestAnimationFrame(() => {
+      if (!prev || prev.atBottom) feed.scrollTop = feed.scrollHeight;
+      else feed.scrollTop = prev.top;      // user scrolled up — stay put
+    });
   }
 }
 
+// ---- transcript viewer (reuses the plan modal) ----
+async function openTranscript(contestant, db) {
+  openPlanModal("📜 " + contestant + " × " + db + " — full agent transcript", "loading…");
+  try {
+    const r = await fetch("/log/" + contestant + "__" + db, { cache: "no-store" });
+    byId("pm-body").textContent = await r.text();
+  } catch (e) {
+    byId("pm-body").textContent = "transcript unavailable: " + e;
+  }
+}
+
+// ---- thinking toggle ----
+(function initThinkToggle() {
+  const cb = byId("showthink");
+  if (!cb) return;
+  const apply = () => byId("feedcols").classList.toggle("hidethink", !cb.checked);
+  cb.checked = localStorage.getItem("bakeoff.showthink") !== "0";
+  cb.addEventListener("change", () => {
+    localStorage.setItem("bakeoff.showthink", cb.checked ? "1" : "0");
+    apply();
+  });
+  apply();
+})();
+
+// ---- tool-mix fingerprint ----
+const TOOL_CATS = ["explore", "write", "shell", "other"];
+// Carbon steps, CVD-validated as a trio; gray/think/issue are labeled slots
+const TOOL_COLORS = { explore: "#1192e8", write: "#8a3ffc", shell: "#d02670",
+                      other: "#8d8d8d", think: "#007d79", issue: "#da1e28" };
+function toolCategory(text) {
+  const t = (text || "").toLowerCase();
+  if (/^(read|cat|head|tail|grep|glob|search|ls\b|list|find|fetch|codebase)/.test(t)) return "explore";
+  if (/^(writ|edit|creat|apply|str_replace|multiedit|todo|delete)/.test(t)) return "write";
+  if (/^(bash|shell|run|exec|command|terminal)/.test(t)) return "shell";
+  return "other";
+}
+function renderToolMix(DATA, order) {
+  const card = byId("toolmixcard"), box = byId("toolmix");
+  const tools = (DATA.events || []).filter(e => e.kind === "tool");
+  if (!tools.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  box.replaceChildren();
+  for (const c of order) {
+    const mine = tools.filter(e => e.contestant === c);
+    if (!mine.length) continue;
+    const counts = {};
+    for (const e of mine) counts[toolCategory(e.text)] = (counts[toolCategory(e.text)] || 0) + 1;
+    const row = el("div", "tmrow");
+    const lbl = el("span", "rlabel", c);
+    lbl.style.color = css(colorVar(c));
+    const bar = el("div", "tmbar");
+    for (const cat of TOOL_CATS) {
+      if (!counts[cat]) continue;
+      const seg = el("div", "tmseg");
+      seg.style.width = (100 * counts[cat] / mine.length) + "%";
+      seg.style.background = TOOL_COLORS[cat];
+      hoverable(seg, counts[cat] + " " + cat, c + " — " +
+        Math.round(100 * counts[cat] / mine.length) + "% of " + mine.length + " tool calls");
+      bar.append(seg);
+    }
+    row.append(lbl, bar, el("span", "tmnum", mine.length + " calls"));
+    box.append(row);
+  }
+  const lg = el("div", "tmlegend");
+  for (const cat of TOOL_CATS) {
+    const item = el("span");
+    const sw = el("span", "sw"); sw.style.background = TOOL_COLORS[cat];
+    item.append(sw, document.createTextNode(
+      { explore: "explore (read/search)", write: "produce (write/edit)",
+        shell: "execute (shell)", other: "other" }[cat]));
+    lg.append(item);
+  }
+  box.append(lg);
+}
+
+// ---- job timeline (Gantt of events on a shared clock) ----
+function renderTimeline(DATA, order) {
+  const card = byId("timelinecard"), box = byId("timeline");
+  const events = DATA.events || [], jobs = DATA.jobs || [];
+  if (!events.length || !jobs.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  box.replaceChildren();
+  // shared clock: grow with elapsed time while running, but FREEZE at the
+  // last event once every job is done (elapsed_s keeps ticking while the
+  // server idles, which would compress the dots forever)
+  const lastT = events.length ? Math.max(...events.map(e => e.t)) : 0;
+  const running = DATA.live && !DATA.done;
+  const tmax = Math.max(running ? (DATA.elapsed_s || 0) : 0, lastT, 1);
+  const sorted = [...jobs].sort((a, b) =>
+    a.db === b.db ? order.indexOf(a.contestant) - order.indexOf(b.contestant)
+                  : a.db.localeCompare(b.db));
+  for (const j of sorted) {
+    const evs = events.filter(e => e.contestant === j.contestant && e.db === j.db)
+                      .slice(0, 400);
+    if (!evs.length) continue;
+    const failed = j.success === false || j.status === "cancelled";
+    const row = el("div", "tlrow");
+    const lbl = el("span", "rlabel" + (failed ? " tlfail" : ""),
+      (failed ? (j.status === "cancelled" ? "⊘ " : "✗ ") : "") +
+      j.contestant + " × " + j.db);
+    if (!failed) lbl.style.color = css(colorVar(j.contestant));
+    const track = el("div", "tltrack");
+    const t0 = evs[0].t, t1 = evs[evs.length - 1].t;
+    const span = el("div", "tlspan");
+    span.style.left = (100 * t0 / tmax) + "%";
+    span.style.width = Math.max(0.5, 100 * (t1 - t0) / tmax) + "%";
+    span.style.background = failed ? css("--critical") : css(colorVar(j.contestant));
+    if (failed) span.style.opacity = ".55";
+    track.append(span);
+    for (const e of evs) {
+      const d = el("div", "tlev");
+      d.style.left = "min(99%, " + (100 * e.t / tmax) + "%)";
+      const cat = e.kind === "tool" ? toolCategory(e.text) : null;
+      d.style.background = e.kind === "think" ? TOOL_COLORS.think
+        : e.kind === "issue" ? TOOL_COLORS.issue
+        : cat ? TOOL_COLORS[cat]
+        : "#8b98a5";
+      hoverable(d,
+        e.t.toFixed(1) + "s · " + (cat || (e.kind === "think" ? "🧠 thinking" : e.kind)),
+        (e.text || "").slice(0, 200));
+      track.append(d);
+    }
+    row.append(lbl, track);
+    box.append(row);
+  }
+  const axis = el("div", "tlaxis");
+  axis.append(el("span", "", "0s"),
+              el("span", "", Math.round(tmax / 2) + "s"),
+              el("span", "", Math.round(tmax) + "s"));
+  box.append(axis);
+}
+
 // ---- bar chart cards ----
-function barCard(title, note, rows, fmt) {
+function barCard(title, note, rows, fmt, higherBetter) {
   const card = el("div", "card");
   card.append(el("h2", "", title));
   card.append(el("p", "note", note));
   const max = Math.max(...rows.map(r => r.value ?? 0), 1e-9);
+  // best → worst, top → bottom (ascending normally, descending when higher is
+  // better); nulls after real values; baseline always last
+  rows = [...rows].sort((a, b) => {
+    const ab = a.label === "baseline", bb = b.label === "baseline";
+    if (ab !== bb) return ab ? 1 : -1;
+    const nil = higherBetter ? -Infinity : Infinity;
+    const av = a.value == null ? nil : a.value;
+    const bv = b.value == null ? nil : b.value;
+    return higherBetter ? bv - av : av - bv;
+  });
   for (const r of rows) {
     const row = el("div", "brow");
     row.append(el("span", "rlabel", r.label));
@@ -776,8 +1079,8 @@ function barCard(title, note, rows, fmt) {
       const bar = el("div", "bar");
       bar.style.background = css(colorVar(r.label));
       bar.style.width = Math.max(0.4, 100 * r.value / max * 0.72) + "%";
-      track.append(bar, el("span", "rval", fmt(r.value)));
-      hoverable(row, fmt(r.value),
+      track.append(bar, el("span", "rval", r.display || fmt(r.value)));
+      hoverable(row, r.display || fmt(r.value),
         r.label + " — " + title + (r.extra ? " (" + r.extra + ")" : ""));
     }
     row.append(track);
@@ -789,25 +1092,99 @@ function barCard(title, note, rows, fmt) {
 function renderCards(DATA) {
   const cards = byId("cards");
   cards.replaceChildren();
-  const sOrder = contestantOrder({ summary: DATA.summary });
-  if (!sOrder.length) return;
-  if (sOrder.some(c => DATA.summary[c].plan_lines != null))
+  const order = contestantOrder(DATA);   // includes still-running jobs
+  if (!order.length) return;
+  const jobs = DATA.jobs || [];
+  const anyLive = jobs.some(j => j.status === "running");
+  const L = anyLive ? " (live)" : "";
+  // Per-contestant merge: finished results are authoritative; jobs still
+  // running contribute their live values (shadow-tailed files, elapsed clock).
+  // fn(finishedResults, runningJobs) -> {value, extra?, na?}
+  const merged = fn => order.map(c => {
+    const rs = DATA.results.filter(r => r.contestant === c);
+    const doneDbs = new Set(rs.map(r => r.db));
+    const running = jobs.filter(j => j.contestant === c &&
+      j.status === "running" && !doneDbs.has(j.db));
+    return { label: c, ...fn(rs, running, c) };
+  });
+
+  const s = c => DATA.summary[c] || {};
+  if (order.some(c => s(c).plan_lines != null))
     barCard("Phase 1 — planning", "time spent producing the architectural migration plan (hover for size & cost)",
-      sOrder.map(c => ({ label: c, value: DATA.summary[c].plan_wall_time_s,
-                         extra: fmtInt(DATA.summary[c].plan_lines) + " plan lines, " +
-                                (fmtUsd(DATA.summary[c].plan_cost_usd) || "$0") })),
+      order.map(c => ({ label: c, value: s(c).plan_wall_time_s,
+                        extra: fmtInt(s(c).plan_lines) + " plan lines, " +
+                               (fmtUsd(s(c).plan_cost_usd) || "$0") })),
       fmtSec);
-  barCard("Wall time (phase 2)", "migration wall clock across all databases (lower is better)",
-    sOrder.map(c => ({ label: c, value: DATA.summary[c].wall_time_s })), fmtSec);
-  barCard("Cost", "spend in USD — Bob prices in Bobcoins, converted at $0.50/coin (lower is better)",
-    sOrder.map(c => ({ label: c, value: DATA.summary[c].cost_usd,
-                       extra: DATA.summary[c].coins != null
-                         ? DATA.summary[c].coins.toFixed(2) + " coins × $0.50" : null })),
-    v => "$" + v.toFixed(2));
-  barCard("Lines of SQL produced", "non-blank lines across migrated schema + load scripts",
-    sOrder.map(c => ({ label: c, value: DATA.summary[c].lines_of_code })), fmtInt);
-  barCard("Output tokens", "tokens generated by the agent (input tokens are not comparable across CLIs — see table)",
-    sOrder.map(c => ({ label: c, value: DATA.summary[c].tokens_out, na: "n/a" })), fmtTok);
+
+  barCard("Wall time (phase 2)" + L, "migration wall clock across all databases — running jobs show elapsed time so far (lower is better)",
+    merged((rs, running) => ({
+      value: rs.reduce((a, r) => a + (r.agent.wall_time_s || 0), 0) +
+             running.reduce((a, j) => a + (j.started_t != null
+               ? Math.max(0, (DATA.elapsed_s || 0) - j.started_t) : 0), 0)
+    })), fmtSec);
+
+  barCard("Cost" + L, "spend in USD — reported by each CLI when its job finishes (running jobs not yet counted); Bob converts Bobcoins at $0.50/coin, Cursor is estimated from tokens (lower is better)",
+    merged(rs => {
+      const cs = rs.map(r => r.agent.cost_usd).filter(v => v != null);
+      return { value: cs.length ? cs.reduce((a, v) => a + v, 0) : null,
+               na: rs.length ? "not reported" : "running…" };
+    }), v => "$" + v.toFixed(2));
+
+  barCard("Lines of SQL produced" + L, "non-blank lines across migrated schema + load scripts — counts grow live as agents write files",
+    merged((rs, running) => ({
+      value: rs.reduce((a, r) => a + (r.loc || 0), 0) +
+             running.reduce((a, j) => a + (j.loc || 0), 0)
+    })), fmtInt);
+
+  barCard("Output tokens", "tokens generated by the agent, reported at job end (input tokens are not comparable across CLIs — see table)",
+    merged(rs => {
+      const ts = rs.map(r => r.agent.tokens_out).filter(v => v != null);
+      return { value: ts.length ? ts.reduce((a, v) => a + v, 0) : null,
+               na: rs.length ? "n/a" : "running…" };
+    }), fmtTok);
+
+  // live shadow-execution failures while running (includes transient errors
+  // the agent later fixed — rewrites reset + replay the schema); replaced by
+  // the authoritative schema+load validation count once each job finishes
+  barCard("SQL + QA errors" + L, "failed statements PLUS testing-layer error findings — Oracle-isms in output (e.g. CREATE SEQUENCE), agent failures (max-turns, credits), dropped constraints. Hover for the exec/QA split; warnings shown but not counted in the bar",
+    merged((rs, running, c) => {
+      const execErrs = rs.reduce((n, r) => n + (r.validation.schema_errors || []).length +
+                                              (r.validation.load_errors || []).length, 0) +
+                       running.reduce((n, j) => n + (j.sql_err || 0), 0);
+      const qaErrs = rs.reduce((n, r) => n + ((r.quality || {}).errors || 0), 0);
+      const qaWarns = rs.reduce((n, r) => n + ((r.quality || {}).warnings || 0), 0);
+      // live QA: the watcher emits one deduped "issue" event per finding while
+      // the agent works; count those for jobs whose result hasn't landed yet
+      const runningDbs = new Set(running.map(j => j.db));
+      const liveQA = (DATA.events || []).filter(e =>
+        e.kind === "issue" && e.contestant === c && runningDbs.has(e.db)).length;
+      // statement volume from the shadow-execution counters (persist on jobs
+      // after completion; includes replays after agent rewrites)
+      const stmts = jobs.filter(j => j.contestant === c)
+                        .reduce((n, j) => n + (j.sql_ok || 0) + (j.sql_err || 0), 0);
+      const errs = execErrs + qaErrs + liveQA;
+      return { value: errs,
+               display: stmts ? errs + " err / " + stmts + " stmts" : String(errs),
+               extra: execErrs + " failed statement(s) + " + (qaErrs + liveQA) +
+                      " QA error(s)" + (qaWarns ? " (+" + qaWarns +
+                      " warning(s), not counted)" : "") +
+                      (stmts ? " — " + stmts + " statements executed" : "") };
+    }), fmtInt);
+
+  barCard("Constraint preservation" + L, "% of source PK / FK / CHECK / UNIQUE / NOT NULL constraints carried into the migrated DDL vs ground truth — updates live as agents write schema files (higher is better; heuristic quality findings live in the Testing layer)",
+    merged((rs, running) => {
+      let exp = 0, kept = 0;
+      for (const r of rs) {
+        const c = r.validation.constraints || {};
+        exp += c.expected || 0; kept += c.preserved || 0;
+      }
+      for (const j of running) {
+        const c = j.constraints || {};
+        exp += c.expected || 0; kept += c.preserved || 0;
+      }
+      return { value: exp ? 100 * kept / exp : null,
+               na: anyLive ? "writing…" : "n/a" };
+    }), v => v.toFixed(0) + "%", true);
 }
 
 // ---- success matrix ----
@@ -904,6 +1281,8 @@ function render(DATA) {
   renderLegend(order);
   renderFlow(DATA, order);
   renderFeed(DATA, order);
+  renderTimeline(DATA, order);
+  renderToolMix(DATA, order);
   renderQuality(DATA, order);
   renderCards(DATA);
   renderMatrix(DATA, order);
@@ -935,10 +1314,32 @@ runbtn.addEventListener("click", async () => {
     runbtn.disabled = false;
   }
 });
+// ---- cancel button ----
+const cancelbtn = byId("cancelbtn");
+cancelbtn.addEventListener("click", async () => {
+  cancelbtn.disabled = true;
+  cancelbtn.textContent = "⏹ Cancelling…";
+  try {
+    const r = await fetch("/cancel", { method: "POST" });
+    if (!r.ok && r.status !== 409) throw new Error(r.status);
+  } catch (e) {
+    cancelbtn.textContent = "⏹ Cancel";
+    cancelbtn.disabled = false;
+  }
+});
+
 function updateRunBtn(state) {
+  const running = !state.idle && !state.done;
+  // cancel is visible only while a run is actually in flight
+  if (state.can_cancel && running) {
+    cancelbtn.style.display = "";
+  } else {
+    cancelbtn.style.display = "none";
+    cancelbtn.textContent = "⏹ Cancel";
+    cancelbtn.disabled = false;
+  }
   if (!state.can_run) { runbtn.style.display = "none"; return; }
   runbtn.style.display = "";
-  const running = !state.idle && !state.done;
   if (running) {
     runbtn.disabled = true;
     runbtn.textContent = "⏳ Running…";
@@ -949,12 +1350,86 @@ function updateRunBtn(state) {
   }
 }
 
+// ---- debug console (live viewership diagnostics) ----
+const DBG_CAP = 500;
+let dbgPaused = false, dbgVerbose = false, renderCount = 0;
+function dbgEl() { return document.getElementById("dbglog"); }
+function dbg(kind, msg) {
+  const box = dbgEl();
+  if (!box || dbgPaused) return;
+  const now = new Date();
+  const ts = now.toTimeString().slice(0, 8) + "." +
+    String(now.getMilliseconds()).padStart(3, "0");
+  const color = { error: "#ff6b6b", warn: "#e6a23c", render: "#3fb950",
+                  poll: "#8b98a5", info: "#58a6ff" }[kind] || "#8b98a5";
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+  const line = el("div");
+  line.append(el2("span", "#6b7480", ts + " "),
+              el2("span", color, kind + " ", true));
+  line.append(document.createTextNode(msg));   // message as text — no injection
+  box.append(line);
+  while (box.childNodes.length > DBG_CAP) box.removeChild(box.firstChild);
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+function el2(tag, color, text, bold) {
+  const s = document.createElement(tag);
+  s.style.color = color;
+  if (bold) s.style.fontWeight = "600";
+  s.textContent = text;
+  return s;
+}
+// surface JS errors (incl. those thrown inside render) straight into the panel
+window.addEventListener("error", e =>
+  dbg("error", "JS: " + (e.message || e.error) +
+    (e.filename ? " @ " + e.filename.split("/").pop() + ":" + e.lineno : "")));
+window.addEventListener("unhandledrejection", e =>
+  dbg("error", "promise: " + ((e.reason && e.reason.message) || e.reason)));
+
+(function initDebug() {
+  if (!LIVE) return;                       // debug console is a live-mode tool
+  const card = document.getElementById("debugcard");
+  if (card) card.style.display = "";
+  const bind = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener("click", fn); };
+  bind("dbgClear", () => { const b = dbgEl(); if (b) b.replaceChildren(); });
+  bind("dbgPause", () => {
+    dbgPaused = !dbgPaused;
+    const b = document.getElementById("dbgPause");
+    if (b) b.textContent = dbgPaused ? "resume" : "pause";
+    if (!dbgPaused) { const box = dbgEl(); if (box) box.scrollTop = box.scrollHeight; }
+  });
+  const vb = document.getElementById("dbgVerbose");
+  if (vb) vb.addEventListener("change", () => {
+    dbgVerbose = vb.checked;
+    dbg("info", dbgVerbose ? "verbose on — logging every poll" : "verbose off");
+  });
+  bind("dbgSnap", () => {
+    if (!lastData) { dbg("info", "no snapshot received yet"); return; }
+    const j = JSON.stringify(lastData);
+    dbg("info", "snapshot " + j.length + "B · events " +
+      (lastData.events || []).length + " · jobs " + (lastData.jobs || []).length +
+      " · results " + (lastData.results || []).length +
+      " (full object also logged to browser console)");
+    console.log("[bakeoff snapshot]", lastData);
+  });
+})();
+
 if (LIVE) {
-  let stopped = false, failures = 0, lastFp = null;
+  dbg("info", "live mode — polling /live.json every 300ms");
+  let stopped = false, failures = 0, lastFp = null, polls = 0;
   async function tick() {
     try {
+      const t0 = performance.now();
       const r = await fetch("/live.json", { cache: "no-store" });
-      const state = await r.json();
+      const txt = await r.text();
+      const dt = Math.round(performance.now() - t0);
+      polls++;
+      let state;
+      try {
+        state = JSON.parse(txt);
+      } catch (pe) {
+        dbg("error", "bad JSON from /live.json (" + txt.length + "B): " + pe.message);
+        throw pe;
+      }
       failures = 0;
       // only rebuild the DOM when the state actually changed — keeps scroll
       // position stable in expanded plan docs and feeds while idle
@@ -962,17 +1437,45 @@ if (LIVE) {
         state.elapsed_s, (state.events || []).length,
         (state.results || []).length,
         (state.jobs || []).map(j => j.status + (j.phase || "") +
-          (j.rows_moved || 0) + (j.sql || []).length).join(",")]);
-      if (fp !== lastFp) { lastFp = fp; render(state); }
+          (j.rows_moved || 0) + "." + (j.sql_ok || 0) + "." + (j.sql_err || 0)).join(",")]);
+      if (dbgVerbose)
+        dbg("poll", "#" + polls + " " + r.status + " " + txt.length + "B " + dt + "ms " +
+          (fp === lastFp ? "· no change" : "· changed"));
+      if (fp !== lastFp) {
+        lastFp = fp;
+        const jobs = state.jobs || [];
+        const running = jobs.filter(j => j.status === "running").length;
+        const doneN = jobs.filter(j => j.status === "done").length;
+        const rt0 = performance.now();
+        try {
+          render(state);
+          renderCount++;
+          dbg("render", "#" + renderCount + " " + Math.round(performance.now() - rt0) +
+            "ms · events " + (state.events || []).length + " · jobs " + jobs.length +
+            " (" + running + " run, " + doneN + " done) · results " +
+            (state.results || []).length +
+            (state.done ? " · DONE" : state.idle ? " · idle" : ""));
+        } catch (re) {
+          // don't let a render bug kill the live connection — log and keep polling
+          dbg("error", "render() threw: " + ((re && re.message) || re) +
+            (re && re.stack ? " | " + re.stack.split("\\n")[1] : ""));
+        }
+      }
       updateRunBtn(state);
       // one-shot mode stops on done; --serve mode keeps polling so the
       // button can start the next run
-      if (state.done && !state.can_run) stopped = true;
+      if (state.done && !state.can_run) {
+        stopped = true;
+        dbg("info", "run finished (done, one-shot) — polling stopped");
+      }
     } catch (e) {
       if (++failures > 5) {
         byId("livenote").textContent = "live server stopped — reopen results/<run>/dashboard.html for the final report";
         byId("livedot").classList.add("done");
         stopped = true;
+        dbg("error", "live server unreachable after 5 tries — polling stopped");
+      } else {
+        dbg("warn", "poll failed (" + failures + "/5): " + ((e && e.message) || e));
       }
     }
     if (!stopped) setTimeout(tick, 300);
