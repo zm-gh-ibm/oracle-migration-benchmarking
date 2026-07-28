@@ -82,38 +82,136 @@ Two mechanisms make the movement real, not a timer animation:
 A Prometheus-compatible `/metrics` endpoint is also served, if you want to
 scrape runs into Prometheus/Grafana.
 
-## Running it
+## Running a bakeoff
+
+### 1. Prerequisites
+
+- **Python 3.9+**
+- **PostgreSQL** running locally (the default target). Any local server works;
+  macOS Homebrew shown below. Prefer zero setup? Use `--target duckdb` instead
+  and skip this entirely.
+- **The agent CLIs you want to race** — you only need the ones listed in
+  `run.contestants`. `baseline` needs nothing and is free.
 
 ```bash
+git clone https://github.com/zm-gh-ibm/oracle-migration-benchmarking.git
+cd oracle-migration-benchmarking
+
 python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 
-# start Postgres (default target) — macOS Homebrew shown; any local PG works
-brew services start postgresql@17     # the harness auto-creates the `bakeoff` db
+# start Postgres — the harness auto-creates the `bakeoff` database itself
+brew services start postgresql@17
+```
 
-# authenticate the agent CLIs (one-time)
-claude /login                         # claude contestant
-cursor-agent login                    # cursor contestant (spends Cursor credits)
+### 2. Log in to the agent CLIs (one-time, no API keys needed)
 
-# serve the dashboard (default) — opens the browser, runs start from its button
+Each contestant CLI uses **its own interactive login**, not an API key in this
+repo. Run these once in your terminal:
+
+```bash
+claude          # then /login   — Claude Code (billed to your Claude account)
+cursor-agent login               # Cursor CLI (spends Cursor plan credits)
+bob --accept-license             # IBM Bob (spends Bobcoins)
+```
+
+Verify a CLI is ready before a paid run: `claude -p "say hi"`,
+`cursor-agent -p "say hi"`, `bob "say hi" -o json`.
+
+> **No credentials live in this repo.** See [Credentials](#credentials) below.
+> If you're just evaluating the harness, skip this step and run the free
+> `baseline`-only smoke test in step 4.
+
+### 3. Choose a config
+
+Everything is driven by one YAML file — fleet size, which contestants race,
+target, difficulty, models. Two are provided:
+
+| File | Purpose | Est. cost per run |
+|---|---|---|
+| `bakeoff.config.yaml` | Full demo — 2 dbs, 4–6 tables, plan phase on, opus | ~$10–15 |
+| `bakeoff.config.dev.yaml` | Cheap iteration — small dbs, no plan phase, sonnet | ~$1–2 |
+
+Select one with `--config`; `bakeoff.config.yaml` is the default. Editing the
+YAML is preferred over flags for anything you want to keep.
+
+### 4. Run it
+
+The default mode **serves the dashboard and waits** — nothing is spent until you
+press the ▶ button on the page.
+
+```bash
+# 1) serve the dashboard, auto-open the browser, wait for the ▶ button
 ./.venv/bin/python run_bakeoff.py
 
-# cheap dev/test run (small DBs, no plan phase, sonnet — ~$1–2)
-./.venv/bin/python run_bakeoff.py --config bakeoff.config.dev.yaml --once
-
-# run once immediately instead of serving
-./.venv/bin/python run_bakeoff.py --once
-
-# free end-to-end smoke test (no agents, no cost)
+# 2) free end-to-end smoke test — no agents, no cost, proves the pipeline works
 ./.venv/bin/python run_bakeoff.py --once --contestants baseline
 
-# scale it up
+# 3) cheap real run against the dev config (~$1–2)
+./.venv/bin/python run_bakeoff.py --config bakeoff.config.dev.yaml --once
+
+# 4) the full demo, run immediately instead of waiting for the button
+./.venv/bin/python run_bakeoff.py --once
+
+# 5) scale up
 ./.venv/bin/python run_bakeoff.py --once --num-dbs 100 --parallelism 8
 ```
 
-Other flags: `--no-plan` (skip phase 1), `--generate-only` (just emit Oracle
-sources), `--revalidate` (re-score existing workspaces without re-running
-agents), `--contestants claude,bob`, `--target duckdb|snowflake`,
-`--live-port N`, `--no-browser`.
+What you'll see: the dashboard opens at <http://127.0.0.1:8765>, showing the
+previous run (if any) until you start a new one. Press **▶ Run bakeoff** and
+each contestant moves through `phase 1 · planning` → `phase 2 · migrating`,
+with tool calls, SQL, and rows streaming live. **⏹ Cancel** kills in-flight
+agents; queued jobs are skipped. A full-demo run takes roughly 5–10 minutes.
+
+### 5. Read the results
+
+```
+results/<run-name>/REPORT.md        # the scoreboard, markdown
+results/<run-name>/results.json     # every metric, machine-readable
+results/<run-name>/dashboard.html   # self-contained; open it any time
+runs/<run-name>/history/<ts>/       # per-run snapshot: agent logs, produced SQL
+runs/<run-name>/<contestant>/<db>/  # the workspace each agent actually worked in
+```
+
+The dashboard's history dropdown reloads any archived run, and **⬇ Export**
+downloads the displayed `results.json`.
+
+### Useful flags
+
+`--contestants claude,bob` (subset) · `--no-plan` (skip phase 1) ·
+`--target duckdb|snowflake` · `--num-dbs N` · `--parallelism N` ·
+`--generate-only` (just emit the Oracle sources) · `--revalidate` (re-score
+existing workspaces without re-spending agent tokens) · `--live-port N` ·
+`--no-browser` · `--no-live` (disable the dashboard entirely).
+
+### Troubleshooting
+
+- **Port 8765 already in use** — a previous server is still running:
+  `lsof -ti :8765 | xargs kill`, or use `--live-port 0` for a random free port.
+- **Dashboard looks stale after you edit the code** — a running server keeps
+  serving its old page; restart `run_bakeoff.py`.
+- **Machine bogs down / server killed mid-run** — lower `run.parallelism`
+  (3 is comfortable on a laptop; 8+ wants a workstation).
+- **An agent fails with an auth or network error** — re-run its CLI
+  interactively to re-authenticate; the harness records the failure and
+  continues with the other contestants.
+
+## Credentials
+
+**This repo contains no keys, and none are required to run it.** Each agent CLI
+authenticates itself (Claude Code via your Claude login/Keychain, Cursor via
+`~/.cursor`, Bob via its own session), so a fresh clone plus `claude /login`
+is all it takes.
+
+- `.env` is **gitignored**; only the `.env.example` template is committed, and
+  it contains placeholders only.
+- The `.env` file exists for one real purpose: **Snowflake** credentials, when
+  `run.target: snowflake`. It is never auto-loaded — you must
+  `set -a; source .env; set +a` yourself.
+- `ANTHROPIC_API_KEY` / `CURSOR_API_KEY` are commented out in the template on
+  purpose. Set them **only** for headless/CI runs on a different account —
+  exporting an *empty* value overrides and breaks the CLI's OAuth login.
+- Agent logs under `runs/` and `results/` are gitignored too, so transcripts
+  never land in version control.
 
 ## Contestants
 
@@ -121,19 +219,13 @@ agents), `--contestants claude,bob`, `--target duckdb|snowflake`,
 |---|---|---|---|
 | `baseline` | — | none | Free rule-based converter; the floor agents must beat |
 | `claude` | `claude` (Claude Code) | opus (pinned) | Reports cost in USD directly |
-| `cursor` | `cursor-agent` (Cursor CLI) | Cursor default | Real Cursor credits; the CLI reports tokens but no dollar cost. Pin a model via `contestants.cursor.model` for reproducibility |
+| `cursor` | `cursor-agent` (Cursor CLI) | `composer-2.5` (pinned; `null` = Cursor's shipped default) | Real Cursor credits; the CLI reports tokens but no dollar cost, so USD is estimated from `usd_per_1m_*` |
 | `bob` | `bob` (IBM Bob) | IBM default | Prices in Bobcoins; USD computed at `usd_per_coin` |
 
 ## Cost
 
-Cost is dominated by LLM tokens, not the harness. Two configs are provided:
-
-| File | Purpose | Est. cost (all contestants × 2 dbs) |
-|---|---|---|
-| `bakeoff.config.yaml` | Full demo — mid-size DBs, plan phase on, opus | ~$10–15 |
-| `bakeoff.config.dev.yaml` | Cheap iteration — small DBs, no plan, sonnet | ~$1–2 |
-
-The main levers:
+Cost is dominated by LLM tokens, not the harness — see the config table in
+[Running a bakeoff](#3-choose-a-config) for the two presets. The main levers:
 
 - `planning_phase: false` — skip phase 1, saves ~40% cost and time
 - `rows_per_table` — CSV data is the largest context chunk; halving rows cuts ~50% of tokens

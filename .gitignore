@@ -6,6 +6,11 @@ __pycache__/
 
 # Secrets (only the .env.example template is committed)
 .env
+.env.*
+!.env.example
+
+# Local CLI install artifacts (e.g. the Bob CLI tarball)
+*.tgz
 
 # Generated run artifacts (reproducible — see README)
 runs/
